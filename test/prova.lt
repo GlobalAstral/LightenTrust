@@ -1,0 +1,12 @@
+
+type Node;                 // type Node &void
+type Node struct {
+  interior : &Node;
+  id : int;
+}
+
+func main(a : int) : int;
+
+func main(a : int) : int {
+  var x : int;
+};

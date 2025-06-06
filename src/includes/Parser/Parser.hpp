@@ -1,0 +1,45 @@
+#pragma once
+
+#include <Parser/Node.hpp>
+#include <Tokenizer/Token.hpp>
+#include <Utils/Processor.hpp>
+#include <Utils/Map.hpp>
+
+namespace Parser {
+  using namespace std;
+  class Parser : Processor::Processor<Tokens::Token> {
+    public:
+      Parser(vector<Tokens::Token>& tokens) {
+        this->content = tokens;
+        registerNodes();
+      };
+
+      vector<Node::NodeInstance*> parse();
+
+    protected:
+      virtual Tokens::Token null() { return Tokens::nullToken(); };
+      virtual int getCurrentLine() { return peek(-1).line; };
+      virtual bool equalCriteria(Tokens::Token a, Tokens::Token b) {
+        if (a.type != b.type || (!a.value.empty() && !b.value.empty() && a.value != b.value))
+          return false;
+        return true;
+      };
+
+    private:
+      void registerNodes();
+      Node::NodeInstance* parseSingle();
+
+      Node::Type* parseType();
+      Node::Variable* parseVar();
+      Node::Expression* parseExpr();
+
+      bool funcHasBody(Node::NodeInstance* instance, vector<Node::NodeInstance*>& funcs);
+      bool varExists(Node::Variable* var, vector<Node::Variable*>& variables);
+
+      vector<Node::Node> nodes;
+      vector<Node::Variable*> vars;
+      vector<Node::NodeInstance*> functions;
+      Map::Map<string, Node::Type*> declaredTypes;
+      int scopeHierarchy = 0;
+  };
+}

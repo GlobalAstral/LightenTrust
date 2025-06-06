@@ -1,0 +1,14 @@
+-- PARSER
+
+Node FunctionDeclare("func_decl", Node::Statement)
+	.require([this](){return tryconsume({Tokens::TokenType::Func})})
+	.property<bool>("public", [this](){return tryconsume({Tokens::TokenType::Public})})
+	.property<bool>("inline", [this](){return tryconsume({Tokens::TokenType::Inline})})
+	.property<std::string>("name", [this](){ ... })
+	.closure({Tokens::TokenType::open_paren}, {Tokens::TokenType::close_paren},[](){...})
+	.property<Type&>("returnType", [this](){return parseType()})
+	.build();
+
+--------------------------------------------------------------------
+
+func public inline franco(n : int) int;
