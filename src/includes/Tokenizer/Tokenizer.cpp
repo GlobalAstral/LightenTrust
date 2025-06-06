@@ -144,6 +144,8 @@ std::vector<Tokens::Token> Tokenizer::Tokenizer::tokenize() {
           tokens.push_back({Tokens::TokenType::Func, line});
         } else if (buffer == "var") {
           tokens.push_back({Tokens::TokenType::Var, line});
+        } else if (buffer == "public") {
+          tokens.push_back({Tokens::TokenType::Public, line});
         } else if (buffer == "asm") {
           while (tryconsume(' ') || tryconsume('\r'));
           while (tryconsume('\n')) {line++;};

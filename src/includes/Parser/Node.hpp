@@ -50,12 +50,8 @@ namespace Node {
       any value;
   };
 
-  enum class NodeType {
-    Expression, Statement
-  };
-
   enum class NodeId {
-    scope, func_decl, var_decl, type_decl,
+    scope, func_decl, var_decl, type_decl, public_field
   };
 
   class NodeInstance {
@@ -85,9 +81,8 @@ namespace Node {
   class Node {
     public:
       Node() { }
-      Node(NodeId name, NodeType nodeType, function<bool()> criteria) {
+      Node(NodeId name, function<bool()> criteria) {
         this->id = name;
-        this->nodeType = nodeType;
         this->criteria = criteria;
       }
       bool check() { return criteria(); }
@@ -128,7 +123,6 @@ namespace Node {
       }
 
     private:
-      NodeType nodeType;
       NodeId id;
       vector<Property*> requirements;
       function<bool()> criteria;

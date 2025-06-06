@@ -15,7 +15,7 @@ namespace Parser {
   }
 
   void Parser::registerNodes() {
-    Node::Node{NodeId::scope, NodeType::Statement, [this](){return tryconsume({Tokens::TokenType::open_curly});}}
+    Node::Node{NodeId::scope, [this](){return tryconsume({Tokens::TokenType::open_curly});}}
     .property("content", [this](Node::NodeInstance& instance){
       vector<Node::NodeInstance*> buf;
       int v_index = vars.size();
@@ -30,8 +30,7 @@ namespace Parser {
     }).require([this](Node::NodeInstance& instance){ tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return (void*)0; })
     .registerNode(this->nodes);
 
-    Node::Node{NodeId::func_decl, NodeType::Statement, [this](){ return tryconsume({Tokens::TokenType::Func}); }}
-    .property("public", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::Public}); })
+    Node::Node{NodeId::func_decl, [this](){ return tryconsume({Tokens::TokenType::Func}); }}
     .property("inline", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::Inline}); })
     .property("name", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected Identifier"}).value; })
     .property("parameters", [this](NodeInstance& instance){
@@ -67,7 +66,7 @@ namespace Parser {
       this->functions.push_back(&instance);
     }).registerNode(this->nodes);
 
-    Node::Node(NodeId::var_decl, NodeType::Statement, [this](){ return tryconsume({Tokens::TokenType::Var}); })
+    Node::Node(NodeId::var_decl, [this](){ return tryconsume({Tokens::TokenType::Var}); })
     .property("name", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected Identifier"}).value; })
     .property("type", [this](NodeInstance& instance){ tryconsume({Tokens::TokenType::colon}, {"Missing Token", "Expected type specifier"}); return parseType(); })
     .property("value", [this](NodeInstance& instance){
@@ -84,7 +83,7 @@ namespace Parser {
       this->vars.push_back(var);
     }).registerNode(this->nodes);
 
-    Node::Node{NodeId::type_decl, NodeType::Statement, [this](){ return tryconsume({Tokens::TokenType::Type}); }}
+    Node::Node{NodeId::type_decl, [this](){ return tryconsume({Tokens::TokenType::Type}); }}
     .property("alias", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected Identifier"}).value; })
     .property("type", [this](NodeInstance& instance) { return tryconsume({Tokens::TokenType::semicolon}) ? NULL : parseType(); })
     .finally([this](NodeInstance& instance) {
@@ -93,6 +92,17 @@ namespace Parser {
       if (!declaredTypes.contains(alias) || (declaredTypes.contains(alias) && declaredTypes[alias] == NULL)) {
         declaredTypes[alias] = t;
       } else { error({"Redefinition Error", "Cannot declare already existing type"}); }
+    }).registerNode(this->nodes);
+
+    Node::Node{NodeId::public_field, [this](){ return tryconsume({Tokens::TokenType::Public}); }}
+    .property("name", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected Identifier"}).value; })
+    .property("content", [this](NodeInstance& instance){
+      tryconsume({Tokens::TokenType::open_curly}, {"Missing Token '{'"});
+      vector<NodeInstance*> content;
+      if (!doUntilFind({Tokens::TokenType::close_curly}, [this, &content](){
+        content.push_back(parseSingle());
+      })) error({"Missing Token", "Expected '}'"});
+      return content;
     }).registerNode(this->nodes);
   }
 
