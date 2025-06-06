@@ -60,5 +60,11 @@ int main(int argc, char** argv) {
   Parser::Parser parser{tokens};
   vector<Node::NodeInstance*> nodes = parser.parse();
 
+  cout << endl << "NODES:" << endl;
+
+  for (Node::NodeInstance* instance : nodes) {
+    cout << instance->toString() << endl;
+  }
+
 	return 0;
 }

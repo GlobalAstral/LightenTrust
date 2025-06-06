@@ -5,6 +5,7 @@
 #include <vector>
 #include <any>
 #include <Utils/Errors.hpp>
+#include <sstream>
 
 namespace Node {
   using namespace std;
@@ -32,6 +33,10 @@ namespace Node {
         return this->name;
       }
 
+      bool isValid() {
+        return this->validValue;
+      }
+
       virtual void invoke(NodeInstance& instance) {
         if (validValue)
           Errors::error("Illegal State", "Cannot invoke criteria with valid value");
@@ -55,8 +60,7 @@ namespace Node {
 
   class NodeInstance {
     public:
-      NodeType nodeType;
-      NodeId name;
+      NodeId id;
       vector<Property*> requirements;
 
       template <typename T>
@@ -66,6 +70,15 @@ namespace Node {
             return any_cast<T>(prop->get());
         }
         Errors::error({"Internal Error", "Property not found"});
+      }
+
+      string toString() {
+        stringstream ss;
+        ss << "NodeInstance(";
+        for (Property* prop : requirements)
+          ss << prop->getName() << ": " << ((prop->isValid()) ? "T" : "F") << "; ";
+        ss << ")";
+        return ss.str();
       }
   };
 
@@ -102,8 +115,7 @@ namespace Node {
 
       NodeInstance* build() {
         NodeInstance* ret = new NodeInstance();
-        ret->name = id;
-        ret->nodeType = nodeType;
+        ret->id = id;
         for (Property* prop : requirements) {
           ret->requirements.push_back(new Property(*prop));
         }

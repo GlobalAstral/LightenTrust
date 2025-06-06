@@ -54,7 +54,7 @@ namespace Parser {
       for (Variable* var : params)
         this->vars.push_back(var);
       NodeInstance* body = parseSingle();
-      if (body->name != NodeId::scope)
+      if (body->id != NodeId::scope)
         error({"Syntax Error", "Scope Expected"});
       if (index >= 0)
         this->vars.erase(this->vars.begin()+index);
