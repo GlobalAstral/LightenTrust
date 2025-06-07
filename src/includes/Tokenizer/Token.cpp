@@ -53,6 +53,7 @@ std::string getTypeAsString(Tokens::TokenType type) {
     case Tokens::TokenType::Var: return "VAR";
     case Tokens::TokenType::import: return "IMPORT";
     case Tokens::TokenType::colon: return "COLON";
+    case Tokens::TokenType::public_closure: return "PUBLIC_CLOSURE";
     default: return "NULL";
   }
 }

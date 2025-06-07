@@ -9,7 +9,8 @@ namespace Parser {
     vector<NodeInstance*> ret;
     while (hasPeek()) {
       NodeInstance* node = parseSingle();
-      ret.push_back(node);
+      if (node->add)
+        ret.push_back(node);
     }
     return ret;
   }
@@ -97,13 +98,36 @@ namespace Parser {
     Node::Node{NodeId::public_field, [this](){ return tryconsume({Tokens::TokenType::Public}); }}
     .property("name", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected Identifier"}).value; })
     .property("content", [this](NodeInstance& instance){
-      tryconsume({Tokens::TokenType::open_curly}, {"Missing Token '{'"});
+      tryconsume({Tokens::TokenType::public_closure}, {"Missing Token '{'"});
       vector<NodeInstance*> content;
-      if (!doUntilFind({Tokens::TokenType::close_curly}, [this, &content](){
+      if (!doUntilFind({Tokens::TokenType::public_closure}, [this, &content](){
         content.push_back(parseSingle());
       })) error({"Missing Token", "Expected '}'"});
       return content;
     }).registerNode(this->nodes);
+
+    Node::Node{NodeId::import, [this](){ return tryconsume({Tokens::TokenType::import}); }}
+    .property("path", [this](NodeInstance& instance){
+      vector<string> path;
+      if (!doUntilFind({Tokens::TokenType::semicolon}, [this, &path](){
+        path.push_back(tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected Identifier"}).value);
+      }, {Tokens::TokenType::dot}, {"Missing Token", "Expected '.' separator"}))
+        error({"Missing Token", "Expected ';'"});
+      return path;
+    }).finally([this](NodeInstance& instance){
+      vector<string> path = instance.getProperty<vector<string>>("path");
+      if (path.size() < 2) error({"File Error", "Invalid path for import statement"});
+      string fieldName = path.back();
+      string fileName = *(path.end()-2);
+      stringstream filePath;
+      for (auto i = path.begin(); i != (path.end()-2); ++i)
+        filePath << *i << "\\";
+      filePath << fileName << EXTENSION;
+      string fPath = filePath.str();
+      vector<Tokens::Token> imported = parseFile(fPath, fieldName);
+      for (int i = imported.size()-1; i >= 0; i--)
+        this->content.insert(this->content.begin()+this->_peek, imported[i]);
+    }).notAdd().registerNode(this->nodes);
   }
 
   NodeInstance* Parser::parseSingle() {
@@ -180,6 +204,48 @@ namespace Parser {
 
   Node::Expression *Parser::parseExpr() {
     return nullptr;
+  }
+
+  vector<Tokens::Token> Parser::parseFile(string path, string fieldName) {
+    stringstream content;
+    ifstream ifile{path};
+    if (!ifile.good())
+      error({"File Error", "Cannot open file"});
+    string buf;
+    while (getline(ifile, buf))
+      content << buf << "\n";
+    ifile.close();
+    Tokenizer::Tokenizer tokenizer(content.str());
+    vector<Tokens::Token> tokens = tokenizer.tokenize();
+    vector<Tokens::Token> publics;
+    bool skip = false;
+    for (int i = 0; i < tokens.size(); i++) {
+      Tokens::Token token = tokens[i];
+      if (token.type == Tokens::TokenType::Public) {
+        Tokens::Token name = tokens[++i];
+        if (name.type != Tokens::TokenType::identifier)
+          error({"Internal Error", "Syntax Error in imported file"});
+
+        skip = name.value != fieldName;
+        Tokens::Token bracket = tokens[++i];
+        if (bracket.type != Tokens::TokenType::public_closure)
+          error({"Internal Error", "Syntax Error in imported file"});
+        i++;
+        while (tokens[i].type != Tokens::TokenType::public_closure) {
+          if (!skip) {
+            Tokens::Token cur = tokens[i];
+            cur.line = getCurrentLine();
+            publics.push_back(cur);
+          }
+          i++;
+        }
+      }
+    }
+
+    if (skip)
+      error({"Syntax Error", "Imported field does not exist"});
+    
+    return publics;
   }
 
   bool Parser::funcHasBody(Node::NodeInstance* instance, vector<Node::NodeInstance*> &funcs) {

@@ -1,8 +1,2 @@
 
-public LinkedList {
-  type Node;
-  type Node struct {
-    next : &Node;
-    value : int;
-  }
-}
+import test.importo.Prova;

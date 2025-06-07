@@ -9,7 +9,7 @@ namespace Tokens {
     literal, symbols, identifier,
     Var, Int, Uint, Float, Long, Ulong, Double, Char, Byte, Boolean, String, Void, Mutable, Struct, Union, Interface, As,
     Return, Asm, Type, If, Else, While, Do, For, Namespace, Defer, Func, Inline, Public,
-    import
+    import, public_closure
   };
 
   struct Token {

@@ -63,6 +63,8 @@ std::vector<Tokens::Token> Tokenizer::Tokenizer::tokenize() {
       tokens.push_back({Tokens::TokenType::dot, line});
     } else if (tryconsume(',')) {
       tokens.push_back({Tokens::TokenType::comma, line});
+    } else if (tryconsume('$')) {
+      tokens.push_back({Tokens::TokenType::public_closure, line});
     } else if (tryconsume('\'')) {
       char c = consume();
       if (!tryconsume('\''))
@@ -146,6 +148,8 @@ std::vector<Tokens::Token> Tokenizer::Tokenizer::tokenize() {
           tokens.push_back({Tokens::TokenType::Var, line});
         } else if (buffer == "public") {
           tokens.push_back({Tokens::TokenType::Public, line});
+        } else if (buffer == "import") {
+          tokens.push_back({Tokens::TokenType::import, line});
         } else if (buffer == "asm") {
           while (tryconsume(' ') || tryconsume('\r'));
           while (tryconsume('\n')) {line++;};

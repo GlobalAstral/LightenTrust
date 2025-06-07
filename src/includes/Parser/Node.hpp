@@ -51,13 +51,14 @@ namespace Node {
   };
 
   enum class NodeId {
-    scope, func_decl, var_decl, type_decl, public_field
+    scope, func_decl, var_decl, type_decl, public_field, import
   };
 
   class NodeInstance {
     public:
       NodeId id;
       vector<Property*> requirements;
+      bool add = true;
 
       template <typename T>
       T getProperty(string name) {
@@ -86,6 +87,7 @@ namespace Node {
         this->criteria = criteria;
       }
       bool check() { return criteria(); }
+      bool doAdd() {return !doNotAdd;}
 
       Node& property(string name, function<any(NodeInstance& instance)> f) {
         Property* prop = new Property(name, f);
@@ -104,6 +106,11 @@ namespace Node {
         return *this;
       }
 
+      Node& notAdd() {
+        this->doNotAdd = true;
+        return *this;
+      }
+
       void registerNode(vector<Node>& nodes) {
         nodes.push_back(*this);
       }
@@ -111,6 +118,7 @@ namespace Node {
       NodeInstance* build() {
         NodeInstance* ret = new NodeInstance();
         ret->id = id;
+        ret->add = this->doAdd();
         for (Property* prop : requirements) {
           ret->requirements.push_back(new Property(*prop));
         }
@@ -127,6 +135,7 @@ namespace Node {
       vector<Property*> requirements;
       function<bool()> criteria;
       function<void(NodeInstance&)> fnal = [](NodeInstance&){};
+      bool doNotAdd = false;
   };
   class Type;
   struct Variable {

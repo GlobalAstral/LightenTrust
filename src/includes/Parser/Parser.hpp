@@ -4,6 +4,9 @@
 #include <Tokenizer/Token.hpp>
 #include <Utils/Processor.hpp>
 #include <Utils/Map.hpp>
+#include <Utils/Constants.hpp>
+#include <fstream>
+#include <Tokenizer/Tokenizer.hpp>
 
 namespace Parser {
   using namespace std;
@@ -32,6 +35,7 @@ namespace Parser {
       Node::Type* parseType();
       Node::Variable* parseVar();
       Node::Expression* parseExpr();
+      vector<Tokens::Token> parseFile(string path, string fieldName);
 
       bool funcHasBody(Node::NodeInstance* instance, vector<Node::NodeInstance*>& funcs);
       bool varExists(Node::Variable* var, vector<Node::Variable*>& variables);
