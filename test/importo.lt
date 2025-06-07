@@ -1,5 +1,6 @@
-public Prova $
-  func main() : int {
-
-  };
+public Vector $
+  type Vec2i struct {
+    x : int;
+    y : int;
+  }
 $

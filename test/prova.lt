@@ -1,4 +1,9 @@
+namespace Vector {
+  import test.importo.Vector;
+}
 
 func main() : int {
-  defer var a : int;
+  var a : Vector::Vec2i;
 };
+
+

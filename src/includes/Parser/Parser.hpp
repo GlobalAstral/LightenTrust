@@ -7,6 +7,7 @@
 #include <Utils/Constants.hpp>
 #include <fstream>
 #include <Tokenizer/Tokenizer.hpp>
+#include <Utils/VectorUtils.hpp>
 
 namespace Parser {
   using namespace std;

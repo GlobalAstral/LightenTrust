@@ -103,11 +103,11 @@ namespace Parser {
     Node::Node{NodeId::public_field, [this](){ return tryconsume({Tokens::TokenType::Public}); }}
     .property("name", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected Identifier"}).value; })
     .property("content", [this](NodeInstance& instance){
-      tryconsume({Tokens::TokenType::public_closure}, {"Missing Token '{'"});
+      tryconsume({Tokens::TokenType::public_closure}, {"Missing Token '$'"});
       vector<NodeInstance*> content;
       if (!doUntilFind({Tokens::TokenType::public_closure}, [this, &content](){
         content.push_back(parseSingle());
-      })) error({"Missing Token", "Expected '}'"});
+      })) error({"Missing Token", "Expected '$'"});
       return content;
     }).registerNode(this->nodes);
 
@@ -138,7 +138,10 @@ namespace Parser {
     .notAdd().property("name", [this](NodeInstance& instance){return tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected identifier"}).value;})
     .finally([this, &output](NodeInstance& instance){
       tryconsume({Tokens::TokenType::open_curly}, {"Missing Token", "Expected '{'"});
-      this->namespaces.push_back(instance.getProperty<string>("name"));
+      string name = instance.getProperty<string>("name");
+      if (VectorUtils::find<string>(this->namespaces, name) != -1)
+        error({"Logic Error", "Namespace already in use"});
+      this->namespaces.push_back(name);
       if (!doUntilFind({Tokens::TokenType::close_curly}, [this, &output](){
         NodeInstance* node = parseSingle();
         if (node->add)
@@ -265,6 +268,7 @@ namespace Parser {
           i++;
         }
       }
+      i++;
     }
 
     if (skip)
