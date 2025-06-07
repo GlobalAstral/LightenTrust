@@ -91,8 +91,13 @@ namespace Parser {
 
     Node::Node{NodeId::type_decl, [this](){ return tryconsume({Tokens::TokenType::Type}); }}
     .property("alias", [this](NodeInstance& instance){ return getIdentifier().value; })
-    .property("type", [this](NodeInstance& instance) { return tryconsume({Tokens::TokenType::semicolon}) ? NULL : parseType(); })
-    .finally([this](NodeInstance& instance) {
+    .property("type", [this](NodeInstance& instance) { 
+      if (tryconsume({Tokens::TokenType::semicolon})) 
+        return (Type*)NULL; 
+      Type* t = parseType();
+      tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"});
+      return t;
+    }).finally([this](NodeInstance& instance) {
       string alias = instance.getProperty<string>("alias");
       Type* t = instance.getProperty<Type*>("type");
       if (!declaredTypes.contains(alias) || (declaredTypes.contains(alias) && declaredTypes[alias] == NULL)) {
