@@ -54,6 +54,7 @@ std::string getTypeAsString(Tokens::TokenType type) {
     case Tokens::TokenType::import: return "IMPORT";
     case Tokens::TokenType::colon: return "COLON";
     case Tokens::TokenType::public_closure: return "PUBLIC_CLOSURE";
+    case Tokens::TokenType::d_colon: return "DOUBLE COLON";
     default: return "NULL";
   }
 }

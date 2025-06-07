@@ -58,7 +58,10 @@ std::vector<Tokens::Token> Tokenizer::Tokenizer::tokenize() {
     } else if (tryconsume('@')) {
       tokens.push_back({Tokens::TokenType::at, line});
     } else if (tryconsume(':')) {
-      tokens.push_back({Tokens::TokenType::colon, line});
+      if (tryconsume(':'))
+        tokens.push_back({Tokens::TokenType::d_colon, line});
+      else
+        tokens.push_back({Tokens::TokenType::colon, line});
     } else if (tryconsume('.')) {
       tokens.push_back({Tokens::TokenType::dot, line});
     } else if (tryconsume(',')) {

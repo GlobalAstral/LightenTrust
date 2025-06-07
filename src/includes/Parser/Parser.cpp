@@ -21,8 +21,14 @@ namespace Parser {
       int v_index = vars.size();
       this->scopeHierarchy++;
       if (!doUntilFind({Tokens::TokenType::close_curly}, [&buf, this](){
-        buf.push_back(parseSingle());
+        NodeInstance* node = parseSingle();
+        if (node->add)
+          buf.push_back(node);
       })) error({"Missing Token", "Expected '}'"});
+      for (int i = defers.size()-1; i >= 0; i--) {
+        if (defers[i]->add)
+          buf.push_back(defers[i]);
+      }
       if (v_index >= 0)
         vars.erase(vars.begin()+v_index);
       this->scopeHierarchy--;
@@ -139,6 +145,14 @@ namespace Parser {
           output.push_back(node);
       })) error({"Missing Token", "Expected '}'"});
     }).registerNode(this->nodes);
+
+    Node::Node{NodeId::defer, [this](){ return tryconsume({Tokens::TokenType::Defer}); }}
+    .finally([this](NodeInstance& instance){
+      if (this->scopeHierarchy <= 0)
+        error({"Logic Error", "Cannot use defer out of scope"});
+      NodeInstance* node = parseSingle();
+      defers.push_back(node);
+    }).notAdd().registerNode(this->nodes);
   }
 
   NodeInstance* Parser::parseSingle() {
@@ -270,10 +284,11 @@ namespace Parser {
   }
 
   Tokens::Token Parser::decodeIdentifier() {
+    Tokens::Token t = peek();
     Tokens::Token ident = tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected Identifier"});
     stringstream name;
     name << ident.value;
-    while (tryconsume({Tokens::TokenType::colon})) {
+    while (tryconsume({Tokens::TokenType::d_colon})) {
       Tokens::Token id = tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected Identifier"});
       name << ":" << id.value;
     }

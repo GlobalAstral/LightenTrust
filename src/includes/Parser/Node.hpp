@@ -51,7 +51,7 @@ namespace Node {
   };
 
   enum class NodeId {
-    scope, func_decl, var_decl, type_decl, public_field, import, namesp
+    scope, func_decl, var_decl, type_decl, public_field, import, namesp, defer,
   };
 
   class NodeInstance {

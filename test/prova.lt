@@ -1,4 +1,4 @@
-namespace Prova {
-  import test.importo.Prova;
-}
 
+func main() : int {
+  defer var a : int;
+};

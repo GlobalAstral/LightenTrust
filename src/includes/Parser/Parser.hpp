@@ -47,6 +47,7 @@ namespace Parser {
       vector<Node::NodeInstance*> functions;
       vector<Node::NodeInstance*> output;
       vector<string> namespaces;
+      vector<Node::NodeInstance*> defers;
       Map::Map<string, Node::Type*> declaredTypes;
       int scopeHierarchy = 0;
   };
