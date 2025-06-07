@@ -1,2 +1,4 @@
+namespace Prova {
+  import test.importo.Prova;
+}
 
-import test.importo.Prova;

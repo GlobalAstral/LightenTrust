@@ -14,7 +14,7 @@ namespace Parser {
     public:
       Parser(vector<Tokens::Token>& tokens) {
         this->content = tokens;
-        registerNodes();
+        registerNodes(this->output);
       };
 
       vector<Node::NodeInstance*> parse();
@@ -29,13 +29,15 @@ namespace Parser {
       };
 
     private:
-      void registerNodes();
+      void registerNodes(vector<Node::NodeInstance*>& output);
       Node::NodeInstance* parseSingle();
 
       Node::Type* parseType();
       Node::Variable* parseVar();
       Node::Expression* parseExpr();
       vector<Tokens::Token> parseFile(string path, string fieldName);
+      Tokens::Token getIdentifier();
+      Tokens::Token decodeIdentifier();
 
       bool funcHasBody(Node::NodeInstance* instance, vector<Node::NodeInstance*>& funcs);
       bool varExists(Node::Variable* var, vector<Node::Variable*>& variables);
@@ -43,6 +45,8 @@ namespace Parser {
       vector<Node::Node> nodes;
       vector<Node::Variable*> vars;
       vector<Node::NodeInstance*> functions;
+      vector<Node::NodeInstance*> output;
+      vector<string> namespaces;
       Map::Map<string, Node::Type*> declaredTypes;
       int scopeHierarchy = 0;
   };

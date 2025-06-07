@@ -6,16 +6,15 @@ namespace Parser {
   using namespace Node;
 
   std::vector<NodeInstance*> Parser::parse() {
-    vector<NodeInstance*> ret;
     while (hasPeek()) {
       NodeInstance* node = parseSingle();
       if (node->add)
-        ret.push_back(node);
+        this->output.push_back(node);
     }
-    return ret;
+    return this->output;
   }
 
-  void Parser::registerNodes() {
+  void Parser::registerNodes(vector<NodeInstance*>& output){
     Node::Node{NodeId::scope, [this](){return tryconsume({Tokens::TokenType::open_curly});}}
     .property("content", [this](Node::NodeInstance& instance){
       vector<Node::NodeInstance*> buf;
@@ -33,7 +32,7 @@ namespace Parser {
 
     Node::Node{NodeId::func_decl, [this](){ return tryconsume({Tokens::TokenType::Func}); }}
     .property("inline", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::Inline}); })
-    .property("name", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected Identifier"}).value; })
+    .property("name", [this](NodeInstance& instance){ return getIdentifier().value; })
     .property("parameters", [this](NodeInstance& instance){
       tryconsume({Tokens::TokenType::open_paren}, {"Missing Token", "Expected '('"});
       vector<Variable*> params;
@@ -68,7 +67,7 @@ namespace Parser {
     }).registerNode(this->nodes);
 
     Node::Node(NodeId::var_decl, [this](){ return tryconsume({Tokens::TokenType::Var}); })
-    .property("name", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected Identifier"}).value; })
+    .property("name", [this](NodeInstance& instance){ return getIdentifier().value; })
     .property("type", [this](NodeInstance& instance){ tryconsume({Tokens::TokenType::colon}, {"Missing Token", "Expected type specifier"}); return parseType(); })
     .property("value", [this](NodeInstance& instance){
       if (tryconsume({.type=Tokens::TokenType::symbols, .value="="}))
@@ -85,7 +84,7 @@ namespace Parser {
     }).registerNode(this->nodes);
 
     Node::Node{NodeId::type_decl, [this](){ return tryconsume({Tokens::TokenType::Type}); }}
-    .property("alias", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected Identifier"}).value; })
+    .property("alias", [this](NodeInstance& instance){ return getIdentifier().value; })
     .property("type", [this](NodeInstance& instance) { return tryconsume({Tokens::TokenType::semicolon}) ? NULL : parseType(); })
     .finally([this](NodeInstance& instance) {
       string alias = instance.getProperty<string>("alias");
@@ -128,6 +127,18 @@ namespace Parser {
       for (int i = imported.size()-1; i >= 0; i--)
         this->content.insert(this->content.begin()+this->_peek, imported[i]);
     }).notAdd().registerNode(this->nodes);
+
+    Node::Node{NodeId::namesp, [this](){ return tryconsume({Tokens::TokenType::Namespace}); }}
+    .notAdd().property("name", [this](NodeInstance& instance){return tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected identifier"}).value;})
+    .finally([this, &output](NodeInstance& instance){
+      tryconsume({Tokens::TokenType::open_curly}, {"Missing Token", "Expected '{'"});
+      this->namespaces.push_back(instance.getProperty<string>("name"));
+      if (!doUntilFind({Tokens::TokenType::close_curly}, [this, &output](){
+        NodeInstance* node = parseSingle();
+        if (node->add)
+          output.push_back(node);
+      })) error({"Missing Token", "Expected '}'"});
+    }).registerNode(this->nodes);
   }
 
   NodeInstance* Parser::parseSingle() {
@@ -183,7 +194,7 @@ namespace Parser {
     } else if (tryconsume({Tokens::TokenType::Interface})) {
       return new Type(Type::Builtins::INTERFACE, mut);
     } else if (peek().type == Tokens::TokenType::identifier) {
-      string name = consume().value;
+      string name = decodeIdentifier().value;
       if (!declaredTypes.contains(name))
         error({"Syntax Error", "Invalid Type"});
       Type* declType = declaredTypes[name];
@@ -246,6 +257,28 @@ namespace Parser {
       error({"Syntax Error", "Imported field does not exist"});
     
     return publics;
+  }
+
+  Tokens::Token Parser::getIdentifier() {
+    Tokens::Token ident = decodeIdentifier();
+    stringstream ss;
+    for (string s : this->namespaces)
+      ss << s << ":";
+    ss << ident.value;
+    ident.value = ss.str();
+    return ident;
+  }
+
+  Tokens::Token Parser::decodeIdentifier() {
+    Tokens::Token ident = tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected Identifier"});
+    stringstream name;
+    name << ident.value;
+    while (tryconsume({Tokens::TokenType::colon})) {
+      Tokens::Token id = tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected Identifier"});
+      name << ":" << id.value;
+    }
+    ident.value = name.str();
+    return ident;
   }
 
   bool Parser::funcHasBody(Node::NodeInstance* instance, vector<Node::NodeInstance*> &funcs) {
