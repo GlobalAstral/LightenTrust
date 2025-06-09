@@ -1,6 +1,3 @@
 public Vector $
-  type Vec2i struct {
-    x : int;
-    y : int;
-  }
+  type p interface<void|int>; 
 $

@@ -214,7 +214,16 @@ namespace Parser {
       ret->mut = mut;
       return ret;
     } else if (tryconsume({Tokens::TokenType::Interface})) {
-      return new Type(Type::Builtins::INTERFACE, mut);
+      tryconsume({Tokens::TokenType::open_angle}, {"Missing Token", "Expected '<'"});
+      Type* ret = parseType();
+      if (tryconsume({Tokens::TokenType::close_angle}))
+        return new Type(Type::Builtins::INTERFACE, mut, string(), nullptr, {}, {}, ret);
+      tryconsume({Tokens::TokenType::pipe}, {"Missing Token", "Expected ';'"});
+      vector<Type*> params;
+      bool found = doUntilFind({Tokens::TokenType::close_angle}, [this, &params](){
+        params.push_back(parseType());
+      }, {Tokens::TokenType::comma}, {"Missing Token", "Expected ','"});
+      return new Type(Type::Builtins::INTERFACE, mut, string(), nullptr, {}, params, ret);
     } else if (peek().type == Tokens::TokenType::identifier) {
       string name = decodeIdentifier().value;
       if (!declaredTypes.contains(name))

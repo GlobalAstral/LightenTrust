@@ -3,7 +3,7 @@ namespace Vector {
 }
 
 func main() : int {
-  var a : Vector::Vec2i;
+  var a : Vector::p;
 };
 
 

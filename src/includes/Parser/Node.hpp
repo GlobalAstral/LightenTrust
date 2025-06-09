@@ -151,24 +151,38 @@ namespace Node {
         INT, UINT, LONG, ULONG, FLOAT, DOUBLE, BYTE, CHAR, BOOLEAN, STRING, VOID, STRUCT, UNION, INTERFACE, ALIAS, POINTER
       };
 
-      Type(Builtins type, bool mut = false, string identifier = string(), Type* pointsTo = NULL, vector<Variable*> fields = {}) {
+      Type(Builtins type, bool mut = false, string identifier = string(), Type* pointsTo = nullptr, vector<Variable*> fields = {}, vector<Type*> params = {}, Type* retType = nullptr, Expression* expr = nullptr) {
         this->type = type;
         this->mut = mut;
         this->identifier = identifier;
         this->pointsTo = pointsTo;
         this->fields = fields;
+        this->params = params;
+        this->returnType = retType;
+        this->initSize = expr;
       }
 
       bool operator==(const Type& a) const {
         if (this->type != a.type) return false;
         if (mut != a.mut) return false;
         if (!(identifier.empty() && a.identifier.empty() && identifier == a.identifier)) return false;
-        if ((pointsTo != NULL && a.pointsTo != NULL ) && (*pointsTo != *(a.pointsTo))) return false;
+        if ((pointsTo != nullptr && a.pointsTo != nullptr ) && (*pointsTo != *(a.pointsTo))) return false;
         if (fields.size() != a.fields.size()) return false;
         for (int i = 0; i < fields.size(); i++) {
           Variable* v1 = fields[i];
           Variable* v2 = a.fields[i];
-          if (*(v1->t) != *(v2->t))
+          if (v1->t != nullptr && v2->t != nullptr && *(v1->t) != *(v2->t))
+            return false;
+        }
+        if (this->returnType != nullptr && a.returnType != nullptr && *(this->returnType) != *(a.returnType))
+          return false;
+        if (this->params.size() != a.params.size())
+          return false;
+
+        for (int i = 0; i < params.size(); i++) {
+          Type* a = params[i];
+          Type* b = a->params[i];
+          if (a != nullptr && b != nullptr && *a != *b)
             return false;
         }
         return true;
@@ -181,9 +195,10 @@ namespace Node {
       Builtins type;
       bool mut;
       string identifier;
-      Type* pointsTo; //TODO ARRAY LATER
+      Type* pointsTo;
       vector<Variable*> fields;
+      vector<Type*> params;
+      Type* returnType;
+      Expression* initSize;
   };
-  
-
 }
