@@ -8,6 +8,7 @@
 #include <fstream>
 #include <Tokenizer/Tokenizer.hpp>
 #include <Utils/VectorUtils.hpp>
+#include <limits>
 
 namespace Parser {
   using namespace std;
@@ -35,13 +36,15 @@ namespace Parser {
 
       Node::Type* parseType();
       Node::Variable* parseVar();
-      Node::Expression* parseExpr();
+      Node::Expression* parseExpr(Node::Type* requiredType);
       vector<Tokens::Token> parseFile(string path, string fieldName);
       Tokens::Token getIdentifier();
       Tokens::Token decodeIdentifier();
 
       bool funcHasBody(Node::NodeInstance* instance, vector<Node::NodeInstance*>& funcs);
       bool varExists(Node::Variable* var, vector<Node::Variable*>& variables);
+      Node::Variable* getVar(Node::Variable* var, vector<Node::Variable*>& variables);
+      int findOperation(Node::Operation op, vector<Node::Operation>& operations);
 
       vector<Node::Node> nodes;
       vector<Node::Variable*> vars;
@@ -49,6 +52,9 @@ namespace Parser {
       vector<Node::NodeInstance*> output;
       vector<string> namespaces;
       vector<Node::NodeInstance*> defers;
+      vector<Node::Operation> operators;
+      vector<Node::Cast> casts;
+      vector<Node::Cast> autocasts;
       Map::Map<string, Node::Type*> declaredTypes;
       int scopeHierarchy = 0;
   };

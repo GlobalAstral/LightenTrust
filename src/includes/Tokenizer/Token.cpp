@@ -56,6 +56,11 @@ std::string getTypeAsString(Tokens::TokenType type) {
     case Tokens::TokenType::public_closure: return "PUBLIC_CLOSURE";
     case Tokens::TokenType::d_colon: return "DOUBLE COLON";
     case Tokens::TokenType::pipe: return "PIPE";
+    case Tokens::TokenType::below: return "BELOW";
+    case Tokens::TokenType::above: return "ABOVE";
+    case Tokens::TokenType::all: return "ALL";
+    case Tokens::TokenType::operation: return "OPERATION";
+    case Tokens::TokenType::none: return "NONE";
     default: return "NULL";
   }
 }

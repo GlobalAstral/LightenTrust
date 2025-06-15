@@ -1,9 +1,12 @@
-namespace Vector {
-  import test.importo.Vector;
-}
 
-func main() : int {
-  var a : Vector::p;
+operation +<a: int, b: int, none> int asm {
+  add eax, ecx
 };
 
+operation *<a: int, b: int, above int+int|int> int asm {
+  mul ecx
+};
 
+func main() : int {
+
+};

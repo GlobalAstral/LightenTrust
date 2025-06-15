@@ -155,6 +155,20 @@ std::vector<Tokens::Token> Tokenizer::Tokenizer::tokenize() {
           tokens.push_back({Tokens::TokenType::Public, line});
         } else if (buffer == "import") {
           tokens.push_back({Tokens::TokenType::import, line});
+        } else if (buffer == "true") {
+          tokens.push_back({Tokens::TokenType::literal, line, "true"});
+        } else if (buffer == "false") {
+          tokens.push_back({Tokens::TokenType::literal, line, "false"});
+        } else if (buffer == "below") {
+          tokens.push_back({Tokens::TokenType::below, line});
+        } else if (buffer == "above") {
+          tokens.push_back({Tokens::TokenType::above, line});
+        } else if (buffer == "all") {
+          tokens.push_back({Tokens::TokenType::all, line});
+        } else if (buffer == "none") {
+          tokens.push_back({Tokens::TokenType::none, line});
+        } else if (buffer == "operation") {
+          tokens.push_back({Tokens::TokenType::operation, line});
         } else if (buffer == "asm") {
           while (tryconsume(' ') || tryconsume('\r'));
           while (tryconsume('\n')) {line++;};

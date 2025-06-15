@@ -76,8 +76,10 @@ namespace Parser {
     .property("name", [this](NodeInstance& instance){ return getIdentifier().value; })
     .property("type", [this](NodeInstance& instance){ tryconsume({Tokens::TokenType::colon}, {"Missing Token", "Expected type specifier"}); return parseType(); })
     .property("value", [this](NodeInstance& instance){
-      if (tryconsume({.type=Tokens::TokenType::symbols, .value="="}))
-        return parseExpr();
+      Type* type = instance.getProperty<Type*>("type");
+      if (tryconsume({.type=Tokens::TokenType::symbols, .value="="})) {
+        return parseExpr(type);
+      }
       return (Node::Expression*)NULL;
     }).require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return (void*)0;})
     .finally([this](NodeInstance& instance){
@@ -161,6 +163,94 @@ namespace Parser {
       NodeInstance* node = parseSingle();
       defers.push_back(node);
     }).notAdd().registerNode(this->nodes);
+
+    Node::Node(NodeId::var_set, [this](){ return peek().type == Tokens::TokenType::identifier; })
+    .property("name", [this](NodeInstance& instance){ return getIdentifier().value; })
+    .property("value", [this](NodeInstance& instance){
+      string name = instance.getProperty<string>("name");
+      Variable* var = getVar(new Variable{NULL, name}, this->vars);
+      if (tryconsume({.type=Tokens::TokenType::symbols, .value="="})) {
+        return parseExpr(var->t);
+      }
+      error({"Missing Token", "Expected '='"});
+    }).require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return (void*)0;})
+    .registerNode(this->nodes);
+
+    Node::Node(NodeId::return_stmt, [this](){ return tryconsume({Tokens::TokenType::Return}); })
+    .property("value", [this](NodeInstance& instance){ return parseExpr(NULL); })
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return nullptr;})
+    .registerNode(this->nodes);
+    
+    Node::Node(NodeId::asm_code, [this](){ return peek().type == Tokens::TokenType::Asm; })
+    .property("code", [this](NodeInstance& instance){ return consume().value; })
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return nullptr;})
+    .registerNode(this->nodes);
+
+    Node::Node(NodeId::operation_decl, [this](){ return tryconsume({Tokens::TokenType::operation}); })
+    .property("symbol", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::symbols}, {"Missing Token", "Expected symbols"}).value; })
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::open_angle}, {"Missing Token", "Expected '<'"}); return nullptr;})
+    .property("operand1", [this](NodeInstance& instance){ return parseVar(); })
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::comma}, {"Missing Token", "Expected ','"}); return nullptr;})
+    .property("operand2", [this](NodeInstance& instance){
+      if (peek().type == Tokens::TokenType::below || peek().type == Tokens::TokenType::above || peek().type == Tokens::TokenType::none)
+        return (Node::Variable*) nullptr;
+      Variable* var = parseVar();
+      tryconsume({Tokens::TokenType::comma}, {"Missing Token", "Expected ','"});
+      return var;
+    }).property("precedence", [this](NodeInstance& instance){
+      if (peek().type != Tokens::TokenType::below && peek().type != Tokens::TokenType::above && peek().type != Tokens::TokenType::none)
+        error({"Syntax Error", "Expected precedence specifier"});
+      if (tryconsume({Tokens::TokenType::none}))
+        return 0;
+      Tokens::Token clause = consume(); // ABOVE OR BELOW
+      if (tryconsume({Tokens::TokenType::all})) {
+        if (clause.type == Tokens::TokenType::above)
+          return numeric_limits<int>::max();
+        return numeric_limits<int>::min();
+      }
+      Operation tofind;
+      tofind.unary = false;
+      if (peek().type == Tokens::TokenType::symbols) {
+        tofind.a = nullptr;
+        tofind.unary = true;
+      } else {
+        tofind.a = parseType();
+      }
+      tofind.symbols = tryconsume({Tokens::TokenType::symbols}, {"Missing Token", "Expected symbols"}).value;
+      if (tofind.unary)
+        tofind.a = parseType();
+      else
+        tofind.b = parseType();
+      tryconsume({Tokens::TokenType::pipe}, {"Missing Token", "Expected '|'"});
+      tofind.r = parseType();
+      int index = findOperation(tofind, this->operators);
+      if (index < 0) error({"Syntax Error", "Operation does not exist"});
+      int basePrec = this->operators.at(index).precedence;
+      if (clause.type == Tokens::TokenType::above)
+        return basePrec+1;
+      return basePrec-1;
+    }).require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_angle}, {"Missing Token", "Expected '>'"}); return nullptr;})
+    .property("retType", [this](NodeInstance& instance){ return parseType(); })
+    .property("body", [this](NodeInstance& instance){
+      int prev = vars.size();
+      Variable* var1 = instance.getProperty<Variable*>("operand1");
+      Variable* var2 = instance.getProperty<Variable*>("operand2");
+      vars.push_back(var1);
+      if (var2 != nullptr) vars.push_back(var2);
+      NodeInstance* body = parseSingle();
+      if (prev >= 0)
+        vars.erase(vars.begin()+prev);
+      return body;
+    }).notAdd().finally([this](NodeInstance& instance){
+      Variable* var1 = instance.getProperty<Variable*>("operand1");
+      Variable* var2 = instance.getProperty<Variable*>("operand2");
+      string symbols = instance.getProperty<string>("symbol");
+      Type* retType = instance.getProperty<Type*>("retType");
+      Operation op{var2 == nullptr, symbols, var1->t, ((var2 == nullptr) ? nullptr : var2->t), retType};
+      if (findOperation(op, this->operators) > -1)
+        error({"Syntax Error", "Operation already exists"});
+      this->operators.push_back(op);
+    }).registerNode(this->nodes);
   }
 
   NodeInstance* Parser::parseSingle() {
@@ -244,7 +334,7 @@ namespace Parser {
     return new Variable{t, name};
   }
 
-  Node::Expression *Parser::parseExpr() { //TODO
+  Node::Expression *Parser::parseExpr(Type* requiredType) { //TODO
     return nullptr;
   }
 
@@ -350,5 +440,20 @@ namespace Parser {
         return true;
     }
     return false;
+  }
+
+  Variable *Parser::getVar(Node::Variable *var, vector<Node::Variable *> &variables) {
+    for (Variable* v : variables) {
+      if (v->name == var->name)
+        return v;
+    }
+    error({"Initial Definition Error", "Variable does not exists"});
+  }
+  int Parser::findOperation(Operation op, vector<Operation> &operations) {
+    for (int i = 0; i < operations.size(); i++) {
+      if (operations.at(i) == op)
+        return i;
+    }
+    return -1;
   }
 }

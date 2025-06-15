@@ -6,6 +6,8 @@
 #include <any>
 #include <Utils/Errors.hpp>
 #include <sstream>
+#include <variant>
+#include <Parser/Literals.hpp>
 
 namespace Node {
   using namespace std;
@@ -51,8 +53,20 @@ namespace Node {
   };
 
   enum class NodeId {
-    scope, func_decl, var_decl, type_decl, public_field, import, namesp, defer,
+    scope, func_decl, var_decl, type_decl, public_field, import, namesp, defer, var_set, return_stmt, 
+    asm_code, operation_decl,
   };
+
+  /*
+  TODO if
+  TODO while
+  TODO do while
+  TODO for
+  TODO expression
+  TODO operation
+  TODO cast
+  TODO autocast
+  */
 
   class NodeInstance {
     public:
@@ -143,7 +157,40 @@ namespace Node {
     string name;
   };
 
-  class Expression; //TODO
+  struct Expression;
+
+  struct SubscriptExpr {
+    Expression* base;
+    Expression* index;
+  };
+
+  struct Cast {
+    bool autocast;
+    Type* a;
+    Type* b;
+  };
+
+  struct CastExpr {
+    Expression* expr;
+    Cast* cast;
+  };
+
+  struct Operation;
+
+  struct CustomExpr {
+    Expression* a;
+    Expression* b;
+    Operation* op;
+  };
+
+  enum class ExprType {
+    literal, variable, func_call, reference, dereference, subscript, dot_notation, cast, custom
+  };
+
+  struct Expression {
+    ExprType type;
+    variant<Literal, Variable*, Expression*, SubscriptExpr*, vector<Variable*>, CastExpr*, CustomExpr*> variant;
+  };
 
   class Type {
     public:
@@ -200,5 +247,22 @@ namespace Node {
       vector<Type*> params;
       Type* returnType;
       Expression* initSize;
+  };
+
+  struct Operation {
+    bool unary;
+    string symbols;
+    Type* a;
+    Type* b;
+    Type* r;
+    int precedence;
+    bool operator==(const Operation& a) const {
+      if (unary != a.unary || symbols != a.symbols || (*(this->a) != *(a.a)) || (*(this->b) != *(a.b)) || (*(this->r) != *(a.r))) 
+        return false;
+      return true;
+    }
+    bool operator!=(const Operation& a) const {
+      return !(*this == a);
+    }
   };
 }
