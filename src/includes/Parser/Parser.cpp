@@ -246,10 +246,31 @@ namespace Parser {
       Variable* var2 = instance.getProperty<Variable*>("operand2");
       string symbols = instance.getProperty<string>("symbol");
       Type* retType = instance.getProperty<Type*>("retType");
-      Operation op{var2 == nullptr, symbols, var1->t, ((var2 == nullptr) ? nullptr : var2->t), retType};
+      NodeInstance* body = instance.getProperty<NodeInstance*>("body");
+      Operation op{var2 == nullptr, symbols, var1->t, ((var2 == nullptr) ? nullptr : var2->t), retType, body};
       if (findOperation(op, this->operators) > -1)
         error({"Syntax Error", "Operation already exists"});
       this->operators.push_back(op);
+    }).registerNode(this->nodes);
+
+    Node::Node(NodeId::cast_decl, [this](){ return peek().type == Tokens::TokenType::cast || peek().type == Tokens::TokenType::autocast; })
+    .property("auto", [this](NodeInstance& instance){ return consume().type == Tokens::TokenType::autocast; })
+    .require([this](NodeInstance& instance){ tryconsume({Tokens::TokenType::open_angle}, {"Missing Token", "Expected '<'"}); return nullptr; })
+    .property("operand", [this](NodeInstance& instance){ return parseVar(); })
+    .require([this](NodeInstance& instance){ tryconsume({Tokens::TokenType::close_angle}, {"Missing Token", "Expected '>'"}); return nullptr; })
+    .property("retType", [this](NodeInstance& instance){ return parseType(); })
+    .property("body", [this](NodeInstance& instance){ return parseSingle(); })
+    .notAdd().finally([this](NodeInstance& instance){
+      bool autocast = instance.getProperty<bool>("auto");
+      Variable* var = instance.getProperty<Variable*>("operand");
+      Type* retType = instance.getProperty<Type*>("retType");
+      NodeInstance* body = instance.getProperty<NodeInstance*>("body");
+      vector<Cast>& list = this->casts;
+      if (autocast) { list = this->autocasts; }
+      Cast cast{var->t, retType, body};
+      if (findCast(cast, list) > -1)
+        error({"Syntax Error", "Cast already exists"});
+      list.push_back(cast);
     }).registerNode(this->nodes);
   }
 
@@ -452,6 +473,14 @@ namespace Parser {
   int Parser::findOperation(Operation op, vector<Operation> &operations) {
     for (int i = 0; i < operations.size(); i++) {
       if (operations.at(i) == op)
+        return i;
+    }
+    return -1;
+  }
+
+  int Parser::findCast(Node::Cast cast, vector<Node::Cast> &casts) {
+    for (int i = 0; i < casts.size(); i++) {
+      if (casts.at(i) == cast)
         return i;
     }
     return -1;

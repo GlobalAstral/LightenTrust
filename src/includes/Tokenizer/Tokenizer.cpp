@@ -169,6 +169,10 @@ std::vector<Tokens::Token> Tokenizer::Tokenizer::tokenize() {
           tokens.push_back({Tokens::TokenType::none, line});
         } else if (buffer == "operation") {
           tokens.push_back({Tokens::TokenType::operation, line});
+        } else if (buffer == "cast") {
+          tokens.push_back({Tokens::TokenType::cast, line});
+        } else if (buffer == "autocast") {
+          tokens.push_back({Tokens::TokenType::autocast, line});
         } else if (buffer == "asm") {
           while (tryconsume(' ') || tryconsume('\r'));
           while (tryconsume('\n')) {line++;};

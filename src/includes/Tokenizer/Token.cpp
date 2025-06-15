@@ -61,6 +61,8 @@ std::string getTypeAsString(Tokens::TokenType type) {
     case Tokens::TokenType::all: return "ALL";
     case Tokens::TokenType::operation: return "OPERATION";
     case Tokens::TokenType::none: return "NONE";
+    case Tokens::TokenType::cast: return "CAST";
+    case Tokens::TokenType::autocast: return "AUTOCAST";
     default: return "NULL";
   }
 }

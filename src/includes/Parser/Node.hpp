@@ -54,7 +54,7 @@ namespace Node {
 
   enum class NodeId {
     scope, func_decl, var_decl, type_decl, public_field, import, namesp, defer, var_set, return_stmt, 
-    asm_code, operation_decl,
+    asm_code, operation_decl, cast_decl,
   };
 
   /*
@@ -63,8 +63,6 @@ namespace Node {
   TODO do while
   TODO for
   TODO expression
-  TODO operation
-  TODO cast
   TODO autocast
   */
 
@@ -164,11 +162,7 @@ namespace Node {
     Expression* index;
   };
 
-  struct Cast {
-    bool autocast;
-    Type* a;
-    Type* b;
-  };
+  struct Cast;
 
   struct CastExpr {
     Expression* expr;
@@ -255,6 +249,7 @@ namespace Node {
     Type* a;
     Type* b;
     Type* r;
+    NodeInstance* body;
     int precedence;
     bool operator==(const Operation& a) const {
       if (unary != a.unary || symbols != a.symbols || (*(this->a) != *(a.a)) || (*(this->b) != *(a.b)) || (*(this->r) != *(a.r))) 
@@ -263,6 +258,15 @@ namespace Node {
     }
     bool operator!=(const Operation& a) const {
       return !(*this == a);
+    }
+  };
+
+  struct Cast {
+    Type* a;
+    Type* b;
+    NodeInstance* body;
+    bool operator==(const Cast& a) const {
+      return (*(this->a) == *(a.a) && *(this->b) == *(a.b));
     }
   };
 }

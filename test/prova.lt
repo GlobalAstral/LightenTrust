@@ -1,10 +1,5 @@
+cast <a: int> float asm {
 
-operation +<a: int, b: int, none> int asm {
-  add eax, ecx
-};
-
-operation *<a: int, b: int, above int+int|int> int asm {
-  mul ecx
 };
 
 func main() : int {

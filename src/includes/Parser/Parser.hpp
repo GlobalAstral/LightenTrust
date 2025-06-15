@@ -45,6 +45,7 @@ namespace Parser {
       bool varExists(Node::Variable* var, vector<Node::Variable*>& variables);
       Node::Variable* getVar(Node::Variable* var, vector<Node::Variable*>& variables);
       int findOperation(Node::Operation op, vector<Node::Operation>& operations);
+      int findCast(Node::Cast cast, vector<Node::Cast>& casts);
 
       vector<Node::Node> nodes;
       vector<Node::Variable*> vars;
