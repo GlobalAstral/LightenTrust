@@ -63,7 +63,6 @@ namespace Node {
   TODO do while
   TODO for
   TODO expression
-  TODO autocast
   */
 
   class NodeInstance {
