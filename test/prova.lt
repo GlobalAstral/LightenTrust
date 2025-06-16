@@ -1,7 +1,5 @@
-cast <a: int> float asm {
-
-};
-
 func main() : int {
+  do {
 
+  }; while ();
 };

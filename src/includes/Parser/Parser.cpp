@@ -272,6 +272,30 @@ namespace Parser {
         error({"Syntax Error", "Cast already exists"});
       list.push_back(cast);
     }).registerNode(this->nodes);
+
+    Node::Node(NodeId::if_stmt, [this](){ return tryconsume({Tokens::TokenType::If}); })
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::open_paren}, {"Missing Token", "Expected '('"}); return nullptr;})
+    .property("expr", [this](NodeInstance& instance){ return parseExpr(new Type{Type::Builtins::BOOLEAN}); })
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"}); return nullptr;})
+    .property("body", [this](NodeInstance& instance){ return parseSingle(); })
+    .property("else", [this](NodeInstance& instance){ return ((tryconsume({Tokens::TokenType::Else})) ? parseSingle() : nullptr); })
+    .registerNode(this->nodes);
+
+    Node::Node(NodeId::while_stmt, [this](){ return tryconsume({Tokens::TokenType::While}); })
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::open_paren}, {"Missing Token", "Expected '('"}); return nullptr;})
+    .property("expr", [this](NodeInstance& instance){ return parseExpr(new Type{Type::Builtins::BOOLEAN}); })
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"}); return nullptr;})
+    .property("body", [this](NodeInstance& instance){ return parseSingle(); })
+    .registerNode(this->nodes);
+
+    Node::Node(NodeId::do_while_stmt, [this](){ return tryconsume({Tokens::TokenType::Do}); })
+    .property("body", [this](NodeInstance& instance){ return parseSingle(); })
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::While}, {"Missing Token", "Expected 'while'"}); return nullptr;})
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::open_paren}, {"Missing Token", "Expected '('"}); return nullptr;})
+    .property("expr", [this](NodeInstance& instance){ return parseExpr(new Type{Type::Builtins::BOOLEAN}); })
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"}); return nullptr;})
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return nullptr;})
+    .registerNode(this->nodes);
   }
 
   NodeInstance* Parser::parseSingle() {
