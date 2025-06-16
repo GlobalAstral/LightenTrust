@@ -54,11 +54,10 @@ namespace Node {
 
   enum class NodeId {
     scope, func_decl, var_decl, type_decl, public_field, import, namesp, defer, var_set, return_stmt, 
-    asm_code, operation_decl, cast_decl, if_stmt, while_stmt, do_while_stmt,
+    asm_code, operation_decl, cast_decl, if_stmt, while_stmt, do_while_stmt, for_stmt,
   };
 
   /*
-  TODO for
   TODO expression
   */
 

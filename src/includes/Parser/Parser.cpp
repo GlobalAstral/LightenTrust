@@ -296,6 +296,17 @@ namespace Parser {
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"}); return nullptr;})
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return nullptr;})
     .registerNode(this->nodes);
+
+    Node::Node(NodeId::for_stmt, [this](){return tryconsume({Tokens::TokenType::For});})
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::open_paren}, {"Missing Token", "Expected '('"}); return nullptr;})
+    .property("variable", [this](NodeInstance& instance){ return parseVar(); })
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return nullptr;})
+    .property("expr", [this](NodeInstance& instance){ return parseExpr(new Type{Type::Builtins::BOOLEAN}); })
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return nullptr;})
+    .property("incr", [this](NodeInstance& instance){ return parseSingle(); })
+    .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"}); return nullptr;}).require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"}); return nullptr;})
+    .property("body", [this](NodeInstance& instance){ return parseSingle(); })
+    .registerNode(this->nodes);
   }
 
   NodeInstance* Parser::parseSingle() {
