@@ -57,6 +57,9 @@ int main(int argc, char** argv) {
     cout << token.toString() << endl;
   }
 
+  double d = 3.26612;
+  long long IEEE = *((long long*)&d);
+
   Parser::Parser parser{tokens};
   vector<Node::NodeInstance*> nodes = parser.parse();
 
@@ -65,6 +68,8 @@ int main(int argc, char** argv) {
   for (Node::NodeInstance* instance : nodes) {
     cout << instance->toString() << endl;
   }
+
+  
 
 	return 0;
 }

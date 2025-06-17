@@ -178,7 +178,7 @@ namespace Node {
 
   struct Expression {
     ExprType type;
-    variant<Literal, Variable*, Expression*, SubscriptExpr*, vector<Variable*>, CastExpr*, CustomExpr*> variant;
+    variant<Lits::Literal*, Variable*, Expression*, SubscriptExpr*, vector<Variable*>, CastExpr*, CustomExpr*> variant;
   };
 
   class Type {

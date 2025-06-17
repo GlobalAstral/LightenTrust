@@ -190,7 +190,7 @@ std::vector<Tokens::Token> Tokenizer::Tokenizer::tokenize() {
         }
         buf.str("");
       } else if (isdigit(peek())) {
-        while (isdigit(peek()) || peek() == '.')
+        while (isdigit(peek()) || peek() == '.' || StringUtils::isInString(peek(), Constants::HEX_LETTERS))
           buf << consume();
         if (StringUtils::isInString(peek(), Constants::LITERAL_PREFIXES))
           buf << consume();
