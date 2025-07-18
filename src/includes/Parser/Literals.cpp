@@ -1,4 +1,5 @@
 #include <Parser/Literals.hpp>
+#include "Literals.hpp"
 
 Lits::Literal::Literal(string value) {
   if (value == "true" || value == "false") {
@@ -71,4 +72,7 @@ Lits::Literal::Literal(string value) {
     this->type = Literal::Type::INT;
     this->u.i = stoi(num, NULL);
   }
+}
+Lits::Literal::Type Lits::Literal::getType() {
+  return this->type;
 }

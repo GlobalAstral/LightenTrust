@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Parser/Node.hpp>
+#include <Parser/Literals.hpp>
 #include <Tokenizer/Token.hpp>
 #include <Utils/Processor.hpp>
 #include <Utils/Map.hpp>
@@ -46,6 +47,8 @@ namespace Parser {
       Node::Variable* getVar(Node::Variable* var, vector<Node::Variable*>& variables);
       int findOperation(Node::Operation op, vector<Node::Operation>& operations);
       int findCast(Node::Cast cast, vector<Node::Cast>& casts);
+      bool literalIsType(Lits::Literal* lit, Node::Type* t);
+      Node::Type* literalType(Lits::Literal* lit);
 
       vector<Node::Node> nodes;
       vector<Node::Variable*> vars;

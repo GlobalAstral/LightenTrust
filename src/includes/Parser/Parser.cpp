@@ -168,7 +168,7 @@ namespace Parser {
     .property("name", [this](NodeInstance& instance){ return getIdentifier().value; })
     .property("value", [this](NodeInstance& instance){
       string name = instance.getProperty<string>("name");
-      Variable* var = getVar(new Variable{NULL, name}, this->vars);
+      Variable* var = getVar(new Variable{nullptr, name}, this->vars);
       if (tryconsume({.type=Tokens::TokenType::symbols, .value="="})) {
         return parseExpr(var->t);
       }
@@ -390,8 +390,122 @@ namespace Parser {
     return new Variable{t, name};
   }
 
-  Node::Expression *Parser::parseExpr(Type* requiredType) { //TODO
+  bool Parser::literalIsType(Lits::Literal* lit, Node::Type* t) {
+    using namespace Lits;
+    switch (lit->getType()) {
+      case Literal::Type::BOOLEAN :
+        return t->type == Type::Builtins::BOOLEAN;
+      case Literal::Type::CHAR :
+        return t->type == Type::Builtins::CHAR;
+      case Literal::Type::DOUBLE :
+        return t->type == Type::Builtins::DOUBLE;
+      case Literal::Type::FLOAT :
+        return t->type == Type::Builtins::FLOAT;
+      case Literal::Type::INT :
+        return t->type == Type::Builtins::INT;
+      case Literal::Type::LONG :
+        return t->type == Type::Builtins::LONG;
+      case Literal::Type::STRING :
+        return t->type == Type::Builtins::STRING;
+      case Literal::Type::null :
+        return false;
+    }
+    return false;
+  }
+
+  Node::Type *Parser::literalType(Lits::Literal *lit) {
+    using namespace Lits;
+    switch (lit->getType()) {
+      case Literal::Type::BOOLEAN :
+        return new Type(Type::Builtins::BOOLEAN);
+      case Literal::Type::CHAR :
+        return new Type(Type::Builtins::CHAR);
+      case Literal::Type::DOUBLE :
+        return new Type(Type::Builtins::DOUBLE);
+      case Literal::Type::FLOAT :
+        return new Type(Type::Builtins::FLOAT);
+      case Literal::Type::INT :
+        return new Type(Type::Builtins::INT);
+      case Literal::Type::LONG :
+        return new Type(Type::Builtins::LONG);
+      case Literal::Type::STRING :
+        return new Type(Type::Builtins::STRING);
+    }
     return nullptr;
+  }
+
+  Node::Expression* Parser::parseExpr(Type* requiredType) {
+    Node::Expression* expr = new Node::Expression();
+    if (peek().type == Tokens::TokenType::literal) {
+      Lits::Literal* lit = new Lits::Literal(consume().value);
+      expr->type = ExprType::literal;
+      expr->variant = lit;
+      expr->returnType = literalType(lit);
+    } else if (peek().type == Tokens::TokenType::identifier) {
+      //TODO SUBSCRIPT, DOT_NOTATION
+      string name = consume().value;
+      if (tryconsume({Tokens::TokenType::open_paren})) {
+        vector<Node::Expression*> params;
+        bool found = doUntilFind({Tokens::TokenType::close_paren}, [this, &params](){
+          Node::Expression* e = parseExpr(nullptr);
+          params.push_back(e);
+        }, {Tokens::TokenType::comma}, {"Missing Token", "Expected separating ','"});
+        if (!found)
+          error({"Missing Token", "Expected ')'"});
+        bool funcExists = false;
+        for (NodeInstance* func : this->functions) {
+          if (func->getProperty<string>("name") != name)
+            continue;
+          Type* retType = func->getProperty<Type*>("returnType");
+          bool rightType = true;
+          if (*retType != *requiredType) {
+            rightType = false;
+            for (Cast cst : this->autocasts) {
+              if (*(cst.a) == *(retType) && *(cst.b) == *(requiredType)) {
+                rightType = true;
+                break;
+              }
+            }
+            if (!rightType) continue;
+          }
+          vector<Variable*> paramlist = func->getProperty<vector<Variable*>>("parameters");
+          if (params.size() != paramlist.size()) continue;
+          bool found = true;
+          for (int i = 0; i < params.size(); i++) {
+            if (*(params.at(i)->returnType) != *(paramlist.at(i)->t)) {
+              found = false;
+              break;
+            }
+          }
+          if (!found) continue;
+          expr->returnType = retType;
+          expr->type = ExprType::func_call;
+          expr->variant = func;
+          funcExists = true;
+          break;
+        }
+        if (!funcExists) error({"Syntax Error", "Function does not exist"});
+      } else {
+        Node::Variable* var = getVar(new Variable{nullptr, name}, this->vars);
+        expr->type = ExprType::variable;
+        expr->returnType = var->t;
+        expr->variant = var;
+      }
+    }
+
+    if (requiredType != nullptr && *(expr->returnType) != *requiredType) {
+      for (Cast cst : this->autocasts) {
+        if (*(cst.a) == *(expr->returnType) && *(cst.b) == *(requiredType)) {
+          Node::Expression* temp = new Node::Expression(*expr);
+          expr->returnType = requiredType;
+          expr->type = ExprType::cast;
+          expr->variant = new CastExpr{temp, new Cast(cst)};
+          return expr;
+        }
+      }
+      error({"Type Error", "Expression does not return the required type"});
+    }
+    return expr;
   }
 
   vector<Tokens::Token> Parser::parseFile(string path, string fieldName) {
@@ -490,7 +604,9 @@ namespace Parser {
     }
     return false;
   }
-  bool Parser::varExists(Node::Variable *var, vector<Node::Variable *> &variables) {
+
+  bool Parser::varExists(Node::Variable *var, vector<Node::Variable *> &variables)
+  {
     for (Variable* v : variables) {
       if (var->name == v->name)
         return true;

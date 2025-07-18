@@ -12,6 +12,7 @@ namespace Lits {
         INT, LONG, FLOAT, DOUBLE, CHAR, BOOLEAN, STRING, null,
       };
       Literal(string value);
+      Literal::Type getType();
     private:
       union {
         int i;

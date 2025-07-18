@@ -1,5 +1,7 @@
-func main() : int {
-  do {
+func p() : int {
 
-  }; while ();
+};
+
+func main() : int {
+  var a: int = p();  
 };
