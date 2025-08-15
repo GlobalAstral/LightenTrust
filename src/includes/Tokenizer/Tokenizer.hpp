@@ -16,6 +16,7 @@ namespace Tokenizer {
     private:
       char null();
       int getCurrentLine();
+      std::string getCurrentColumn();
       bool equalCriteria(char a, char b);
 
       unsigned int line = 1;

@@ -550,7 +550,7 @@ namespace Parser {
               break;
             }
             if (funcRef == nullptr)
-              error({"TypeError", "Function with provided type specifiers does not exist"});
+              error({"Type Error", "Function with provided type specifiers does not exist"});
           }
           expr->type = ExprType::interface_ref;
           expr->returnType = new Type(Type::Builtins::INTERFACE, false, string(), nullptr, {}, params, retType, nullptr);

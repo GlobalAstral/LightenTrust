@@ -220,6 +220,8 @@ int Tokenizer::Tokenizer::getCurrentLine() {
   return this->line;
 }
 
+std::string Tokenizer::Tokenizer::getCurrentColumn() { return std::string(1, peek(-1));};
+
 bool Tokenizer::Tokenizer::equalCriteria(char a, char b) {
   return a == b;
 }
