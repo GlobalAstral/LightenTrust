@@ -70,6 +70,9 @@ std::vector<Tokens::Token> Tokenizer::Tokenizer::tokenize() {
       tokens.push_back({Tokens::TokenType::public_closure, line});
     } else if (tryconsume('|')) {
       tokens.push_back({Tokens::TokenType::pipe, line});
+    } else if (peek() == '-' && peek(1) == '>') {
+      tokens.push_back({Tokens::TokenType::arrow, line});
+      consume(2);
     } else if (tryconsume('\'')) {
       char c = consume();
       if (!tryconsume('\''))

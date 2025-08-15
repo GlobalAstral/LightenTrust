@@ -49,6 +49,7 @@ namespace Parser {
       int findCast(Node::Cast cast, vector<Node::Cast>& casts);
       bool literalIsType(Lits::Literal* lit, Node::Type* t);
       Node::Type* literalType(Lits::Literal* lit);
+      vector<Node::NodeInstance*> nameIsFunction(string name, vector<Node::NodeInstance*>& funcs);
 
       vector<Node::Node> nodes;
       vector<Node::Variable*> vars;

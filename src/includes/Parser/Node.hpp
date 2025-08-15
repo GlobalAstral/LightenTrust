@@ -57,10 +57,6 @@ namespace Node {
     asm_code, operation_decl, cast_decl, if_stmt, while_stmt, do_while_stmt, for_stmt,
   };
 
-  /*
-  TODO expression
-  */
-
   class NodeInstance {
     public:
       NodeId id;
@@ -173,7 +169,7 @@ namespace Node {
   };
 
   enum class ExprType {
-    literal, variable, func_call, reference, dereference, subscript, dot_notation, cast, custom
+    literal, variable, func_call, reference, dereference, subscript, dot_notation, cast, interface_ref, custom
   };
 
   struct Expression {
@@ -217,9 +213,9 @@ namespace Node {
           return false;
 
         for (int i = 0; i < params.size(); i++) {
-          Type* a = params[i];
-          Type* b = a->params[i];
-          if (a != nullptr && b != nullptr && *a != *b)
+          Type* a_t = params[i];
+          Type* b_t = a.params[i];
+          if (a_t != nullptr && b_t != nullptr && *a_t != *b_t)
             return false;
         }
         return true;

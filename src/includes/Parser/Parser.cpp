@@ -29,8 +29,9 @@ namespace Parser {
         if (defers[i]->add)
           buf.push_back(defers[i]);
       }
-      if (v_index >= 0)
-        vars.erase(vars.begin()+v_index);
+      if (v_index >= 0 && v_index < this->vars.size()) {
+        this->vars.erase(this->vars.begin() + v_index);
+      }
       this->scopeHierarchy--;
       return buf;
     }).require([this](Node::NodeInstance& instance){ tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return (void*)0; })
@@ -61,8 +62,9 @@ namespace Parser {
       NodeInstance* body = parseSingle();
       if (body->id != NodeId::scope)
         error({"Syntax Error", "Scope Expected"});
-      if (index >= 0)
-        this->vars.erase(this->vars.begin()+index);
+      if (index >= 0 && index < this->vars.size()) {
+        this->vars.erase(this->vars.begin() + index);
+      }
       return body;
     }).finally([this](NodeInstance& instance) {
       if (this->scopeHierarchy > 0)
@@ -238,8 +240,9 @@ namespace Parser {
       vars.push_back(var1);
       if (var2 != nullptr) vars.push_back(var2);
       NodeInstance* body = parseSingle();
-      if (prev >= 0)
-        vars.erase(vars.begin()+prev);
+      if (prev >= 0 && prev < this->vars.size()) {
+        this->vars.erase(this->vars.begin() + prev);
+      }
       return body;
     }).notAdd().finally([this](NodeInstance& instance){
       Variable* var1 = instance.getProperty<Variable*>("operand1");
@@ -360,15 +363,18 @@ namespace Parser {
       ret->mut = mut;
       return ret;
     } else if (tryconsume({Tokens::TokenType::Interface})) {
-      tryconsume({Tokens::TokenType::open_angle}, {"Missing Token", "Expected '<'"});
-      Type* ret = parseType();
-      if (tryconsume({Tokens::TokenType::close_angle}))
-        return new Type(Type::Builtins::INTERFACE, mut, string(), nullptr, {}, {}, ret);
-      tryconsume({Tokens::TokenType::pipe}, {"Missing Token", "Expected ';'"});
+      tryconsume({Tokens::TokenType::open_angle}, {"Missing Token", "Expected type specifier"});
+      tryconsume({Tokens::TokenType::open_paren}, {"Missing Token", "Expected '('"});
       vector<Type*> params;
-      bool found = doUntilFind({Tokens::TokenType::close_angle}, [this, &params](){
-        params.push_back(parseType());
+      bool found = doUntilFind({Tokens::TokenType::close_paren}, [this, &params](){
+        Type* param = parseType();
+        params.push_back(param);
       }, {Tokens::TokenType::comma}, {"Missing Token", "Expected ','"});
+      if (!found)
+        error({"Missing Token", "Expected ')'"});
+      tryconsume({Tokens::TokenType::arrow}, {"Missing Token", "Expected '->'"});
+      Type* ret = parseType();
+      tryconsume({Tokens::TokenType::close_angle}, {"Missing Token", "Expected '>'"});
       return new Type(Type::Builtins::INTERFACE, mut, string(), nullptr, {}, params, ret);
     } else if (peek().type == Tokens::TokenType::identifier) {
       string name = decodeIdentifier().value;
@@ -434,6 +440,16 @@ namespace Parser {
     return nullptr;
   }
 
+  vector<Node::NodeInstance *> Parser::nameIsFunction(string name, vector<Node::NodeInstance *> &funcs) {
+    vector<Node::NodeInstance *> foundFuncs;
+    for (Node::NodeInstance* instance : funcs) {
+      string s = instance->getProperty<string>("name");
+      if (s == name)
+        foundFuncs.push_back(instance);
+    }
+    return foundFuncs;
+  }
+
   Node::Expression* Parser::parseExpr(Type* requiredType) {
     Node::Expression* expr = new Node::Expression();
     if (peek().type == Tokens::TokenType::literal) {
@@ -486,10 +502,57 @@ namespace Parser {
         }
         if (!funcExists) error({"Syntax Error", "Function does not exist"});
       } else {
-        Node::Variable* var = getVar(new Variable{nullptr, name}, this->vars);
-        expr->type = ExprType::variable;
-        expr->returnType = var->t;
-        expr->variant = var;
+        vector<Node::NodeInstance *> funcsFound = nameIsFunction(name, this->functions);
+        if (funcsFound.size() > 0) {
+          Node::NodeInstance* funcRef = nullptr;
+          vector<Type*> params;
+          Type* retType = nullptr;
+          if (funcsFound.size() == 1) {
+            funcRef = funcsFound[0];
+            retType = funcRef->getProperty<Type*>("returnType");
+            vector<Variable*> p = funcRef->getProperty<vector<Variable*>>("parameters");
+            for (Variable* param : p)
+              params.push_back(param->t);
+          } else if (funcsFound.size() > 1) {
+            tryconsume({Tokens::TokenType::open_angle}, {"Missing Token", "Expected type specifier"});
+            tryconsume({Tokens::TokenType::open_paren}, {"Missing Token", "Expected '('"});
+            bool found = doUntilFind({Tokens::TokenType::close_paren}, [this, &params](){
+              Type* param = parseType();
+              params.push_back(param);
+            }, {Tokens::TokenType::comma}, {"Missing Token", "Expected ','"});
+            if (!found)
+              error({"Missing Token", "Expected ')'"});
+            tryconsume({Tokens::TokenType::arrow}, {"Missing Token", "Expected '->'"});
+            retType = parseType();
+            tryconsume({Tokens::TokenType::close_angle}, {"Missing Token", "Expected '>'"});
+            for (NodeInstance* instance : funcsFound) {
+              Type* t = instance->getProperty<Type*>("returnType");
+              vector<Variable*> p = instance->getProperty<vector<Variable*>>("parameters");
+              if (*t != *retType) continue;
+              if (params.size() != p.size()) continue;
+              bool paramsEqual = true;
+              for (int i = 0; i < params.size(); i++) {
+                if (*(params[i]) != *(p[i]->t)) {
+                  paramsEqual = false;
+                  break;
+                }
+              }
+              if (!paramsEqual) continue;
+              funcRef = instance;
+              break;
+            }
+            if (funcRef == nullptr)
+              error({"TypeError", "Function with provided type specifiers does not exist"});
+          }
+          expr->type = ExprType::interface_ref;
+          expr->returnType = new Type(Type::Builtins::INTERFACE, false, string(), nullptr, {}, params, retType, nullptr);
+          expr->variant = funcRef;
+        } else {
+          Node::Variable* var = getVar(new Variable{nullptr, name}, this->vars);
+          expr->type = ExprType::variable;
+          expr->returnType = var->t;
+          expr->variant = var;
+        }
       }
     }
 
