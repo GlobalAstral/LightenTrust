@@ -2,10 +2,6 @@ func p(x : int) : int {
   return x;
 };
 
-func p(x : float) : int {
-  return x;
-};
-
 func main() : int {
-  var a: interface<(int) -> int> = p<(int) -> int >;  
+  var a: interface<(int) -> int> = p;  
 };

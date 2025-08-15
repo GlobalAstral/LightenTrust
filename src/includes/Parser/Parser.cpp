@@ -22,6 +22,8 @@ namespace Parser {
       this->scopeHierarchy++;
       if (!doUntilFind({Tokens::TokenType::close_curly}, [&buf, this](){
         NodeInstance* node = parseSingle();
+        if (node->id == NodeId::func_decl)
+          error({"Syntax Error", "Cannot declare function inside of scope"});
         if (node->add)
           buf.push_back(node);
       })) error({"Missing Token", "Expected '}'"});
@@ -59,7 +61,9 @@ namespace Parser {
       vector<Variable*> params = instance.getProperty<vector<Variable*>>("parameters");
       for (Variable* var : params)
         this->vars.push_back(var);
+      this->funcReturnType = instance.getProperty<Type*>("returnType");
       NodeInstance* body = parseSingle();
+      this->funcReturnType = nullptr;
       if (body->id != NodeId::scope)
         error({"Syntax Error", "Scope Expected"});
       if (index >= 0 && index < this->vars.size()) {
@@ -179,7 +183,11 @@ namespace Parser {
     .registerNode(this->nodes);
 
     Node::Node(NodeId::return_stmt, [this](){ return tryconsume({Tokens::TokenType::Return}); })
-    .property("value", [this](NodeInstance& instance){ return parseExpr(NULL); })
+    .property("value", [this](NodeInstance& instance){
+      if (this->funcReturnType == nullptr)
+        error({"Syntax Error", "Cannot return outside of function"});
+      return parseExpr(this->funcReturnType);
+    })
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return nullptr;})
     .registerNode(this->nodes);
     

@@ -62,5 +62,6 @@ namespace Parser {
       vector<Node::Cast> autocasts;
       Map::Map<string, Node::Type*> declaredTypes;
       int scopeHierarchy = 0;
+      Node::Type* funcReturnType = nullptr;
   };
 }
