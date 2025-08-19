@@ -58,6 +58,7 @@ namespace Parser {
       vector<Node::NodeInstance*> output;
       vector<string> namespaces;
       vector<Node::NodeInstance*> defers;
+      Map::Map<string, vector<Node::NodeInstance*>> aliases{};
       vector<Node::Operation> operators;
       vector<Node::Cast> casts;
       vector<Node::Cast> autocasts;

@@ -170,6 +170,16 @@ namespace Parser {
       defers.push_back(node);
     }).notAdd().registerNode(this->nodes);
 
+    Node::Node(NodeId::alias_use, [this](){ return peek().type == Tokens::TokenType::identifier; })
+    .property("name", [this](NodeInstance& instance){ return decodeIdentifier().value; })
+    .property("content", [this](NodeInstance& instance){
+      string name = instance.getProperty<string>("name");
+      if (!this->aliases.contains(name))
+        return (vector<NodeInstance*>*) nullptr;
+      vector<NodeInstance*>* body = &aliases[name];
+      return body;
+    }).registerNode(this->nodes);
+
     Node::Node(NodeId::var_set, [this](){ return peek().type == Tokens::TokenType::identifier; })
     .property("name", [this](NodeInstance& instance){ return getIdentifier().value; })
     .property("value", [this](NodeInstance& instance){
@@ -318,6 +328,29 @@ namespace Parser {
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"}); return nullptr;}).require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"}); return nullptr;})
     .property("body", [this](NodeInstance& instance){ return parseSingle(); })
     .registerNode(this->nodes);
+
+    Node::Node(NodeId::alias_decl, [this](){return tryconsume({Tokens::TokenType::at});})
+    .property("name", [this](NodeInstance& instance){ return getIdentifier().value; })
+    .property("body", [this](NodeInstance& instance) {
+      vector<NodeInstance*> body;
+      tryconsume({Tokens::TokenType::open_curly}, {"Missing Token '{'"});
+      int v_index = vars.size();
+      
+      bool found = doUntilFind({Tokens::TokenType::close_curly}, [this, &body]() {
+        body.push_back(parseSingle());
+      });
+      if (!found)
+        error({"Missing Token", "Expected '}'"});
+      
+      if (v_index >= 0 && v_index < this->vars.size()) {
+        this->vars.erase(this->vars.begin() + v_index);
+      }
+      return body;
+    }).finally([this](NodeInstance& instance) {
+      string name = instance.getProperty<string>("name");
+      vector<NodeInstance*> body = instance.getProperty<vector<NodeInstance*>>("body");
+      this->aliases[name] = body;
+    }).notAdd().registerNode(this->nodes);
   }
 
   NodeInstance* Parser::parseSingle() {

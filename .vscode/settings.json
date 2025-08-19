@@ -59,7 +59,11 @@
     "ratio": "cpp",
     "iomanip": "cpp",
     "bitset": "cpp",
-    "any": "cpp"
+    "any": "cpp",
+    "cerrno": "cpp",
+    "climits": "cpp",
+    "ios": "cpp",
+    "queue": "cpp"
   },
   "github.copilot.enable": {
     "*": false,

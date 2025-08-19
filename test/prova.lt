@@ -1,7 +1,8 @@
-func p(x : int) : int {
-  return x;
-};
+
+@franco {
+  var a: int = 10;
+}
 
 func main() : int {
-  var a: interface<(int) -> int> = p;  
+  franco
 };
