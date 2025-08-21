@@ -69,10 +69,8 @@ std::string getTypeAsString(Tokens::TokenType type) {
   }
 }
 
-std::string Tokens::Token::toString() {
+void Tokens::Token::print(std::ostream& stream) {
   using std::string, std::stringstream;
   string typeAsString = getTypeAsString(this->type);
-  
-  string ret = Formatting::format("%s(\"%s\")<%d>", typeAsString.c_str(), this->value.c_str(), this->line);
-  return ret;
+  stream << Formatting::format("%s(\"%s\")<%d>", typeAsString.c_str(), this->value.c_str(), this->line);
 }

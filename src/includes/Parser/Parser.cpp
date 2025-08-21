@@ -14,6 +14,12 @@ namespace Parser {
     return this->output;
   }
 
+  void Parser::print(std::ostream &stream) {
+    for (NodeInstance* instance : this->output) {
+      instance->print(stream);
+    }
+  }
+
   void Parser::registerNodes(vector<NodeInstance*>& output){
     Node::Node{NodeId::scope, [this](){return tryconsume({Tokens::TokenType::open_curly});}}
     .property("content", [this](Node::NodeInstance& instance){
@@ -37,7 +43,13 @@ namespace Parser {
       this->scopeHierarchy--;
       return buf;
     }).require([this](Node::NodeInstance& instance){ tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return (void*)0; })
-    .registerNode(this->nodes);
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      vector<Node::NodeInstance*> body = instance.getProperty<vector<Node::NodeInstance*>>("content");
+      stream << "{";
+      for (Node::NodeInstance* i : body)
+        i->print(stream);
+      stream << "}";
+    }).registerNode(this->nodes);
 
     Node::Node{NodeId::func_decl, [this](){ return tryconsume({Tokens::TokenType::Func}); }}
     .property("inline", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::Inline}); })
@@ -76,6 +88,17 @@ namespace Parser {
       if (funcHasBody(&instance, this->functions))
         error({"Redefinition Error", "Function already exists"});
       this->functions.push_back(&instance);
+    }).onPrint([](NodeInstance& instance, std::ostream& stream){
+      bool inline_ = instance.getProperty<bool>("inline");
+      string name = instance.getProperty<string>("name");
+      vector<Variable*> params = instance.getProperty<vector<Variable*>>("parameters");
+      Type* retType = instance.getProperty<Type*>("returnType");
+      NodeInstance* body = instance.getProperty<NodeInstance*>("body");
+      stream << (inline_ ? "INLINE " : " ") << name << "(";
+      for (Variable* var : params)
+        stream << *(var->t) << " : " << var->name << ',';
+      stream << ") -> " << *retType << " ";
+      body->print(stream);
     }).registerNode(this->nodes);
 
     Node::Node(NodeId::var_decl, [this](){ return tryconsume({Tokens::TokenType::Var}); })
@@ -86,7 +109,7 @@ namespace Parser {
       if (tryconsume({.type=Tokens::TokenType::symbols, .value="="})) {
         return parseExpr(type);
       }
-      return (Node::Expression*)NULL;
+      return (Node::Expression*)nullptr;
     }).require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return (void*)0;})
     .finally([this](NodeInstance& instance){
       string name = instance.getProperty<string>("name");
@@ -95,6 +118,15 @@ namespace Parser {
       if (varExists(var, this->vars))
         error({"Redefinition Error", "Variable already exists"});
       this->vars.push_back(var);
+    })
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      string name = instance.getProperty<string>("name");
+      Type* type = instance.getProperty<Type*>("type");
+      Expression* value = instance.getProperty<Expression*>("value");
+      stream << name << " : " << *type;
+      if (value != nullptr)
+        stream << " = " << *value;
+      stream << ";";
     }).registerNode(this->nodes);
 
     Node::Node{NodeId::type_decl, [this](){ return tryconsume({Tokens::TokenType::Type}); }}
@@ -111,7 +143,13 @@ namespace Parser {
       if (!declaredTypes.contains(alias) || (declaredTypes.contains(alias) && declaredTypes[alias] == NULL)) {
         declaredTypes[alias] = t;
       } else { error({"Redefinition Error", "Cannot declare already existing type"}); }
-    }).registerNode(this->nodes);
+    })
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      string alias = instance.getProperty<string>("alias");
+      Type* t = instance.getProperty<Type*>("type");
+      stream << *t << " = " << alias;
+    })
+    .registerNode(this->nodes);
 
     Node::Node{NodeId::public_field, [this](){ return tryconsume({Tokens::TokenType::Public}); }}
     .property("name", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected Identifier"}).value; })
@@ -122,7 +160,18 @@ namespace Parser {
         content.push_back(parseSingle());
       })) error({"Missing Token", "Expected '$'"});
       return content;
-    }).registerNode(this->nodes);
+    })
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      string name = instance.getProperty<string>("name");
+      vector<NodeInstance*> content = instance.getProperty<vector<NodeInstance*>>("content");
+      stream << name << " = {";
+      for (NodeInstance* i : content) {
+        i->print(stream);
+        stream << '\n';
+      }
+      stream << "}";
+    })
+    .registerNode(this->nodes);
 
     Node::Node{NodeId::import, [this](){ return tryconsume({Tokens::TokenType::import}); }}
     .property("path", [this](NodeInstance& instance){
@@ -145,7 +194,16 @@ namespace Parser {
       vector<Tokens::Token> imported = parseFile(fPath, fieldName);
       for (int i = imported.size()-1; i >= 0; i--)
         this->content.insert(this->content.begin()+this->_peek, imported[i]);
-    }).notAdd().registerNode(this->nodes);
+    })
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      vector<string> path = instance.getProperty<vector<string>>("path");
+      for (int i = 0; i < path.size(); i++) {
+        if (i > 0)
+          stream << ".";
+        stream << path[i];
+      }
+    })
+    .notAdd().registerNode(this->nodes);
 
     Node::Node{NodeId::namesp, [this](){ return tryconsume({Tokens::TokenType::Namespace}); }}
     .notAdd().property("name", [this](NodeInstance& instance){return tryconsume({Tokens::TokenType::identifier}, {"Missing Token", "Expected identifier"}).value;})
@@ -160,15 +218,26 @@ namespace Parser {
         if (node->add)
           output.push_back(node);
       })) error({"Missing Token", "Expected '}'"});
-    }).registerNode(this->nodes);
+    })
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      string name = instance.getProperty<string>("name");
+      stream << name;
+    })
+    .registerNode(this->nodes);
 
     Node::Node{NodeId::defer, [this](){ return tryconsume({Tokens::TokenType::Defer}); }}
+    .property("node", [this](NodeInstance& instance){ return parseSingle(); })
     .finally([this](NodeInstance& instance){
       if (this->scopeHierarchy <= 0)
         error({"Logic Error", "Cannot use defer out of scope"});
-      NodeInstance* node = parseSingle();
+      NodeInstance* node = instance.getProperty<NodeInstance*>("node");
       defers.push_back(node);
-    }).notAdd().registerNode(this->nodes);
+    })
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      NodeInstance* node = instance.getProperty<NodeInstance*>("node");
+      node->print(stream);
+    })
+    .notAdd().registerNode(this->nodes);
 
     Node::Node(NodeId::alias_use, [this](){ return peek().type == Tokens::TokenType::identifier; })
     .property("name", [this](NodeInstance& instance){ return decodeIdentifier().value; })
@@ -178,7 +247,18 @@ namespace Parser {
         return (vector<NodeInstance*>*) nullptr;
       vector<NodeInstance*>* body = &aliases[name];
       return body;
-    }).registerNode(this->nodes);
+    })
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      string name = instance.getProperty<string>("name");
+      vector<NodeInstance*>* body = instance.getProperty<vector<NodeInstance*>*>("content");
+      stream << name << "{";
+      for (NodeInstance* instance : *body) {
+        instance->print(stream);
+        stream << '\n';
+      }
+      stream << "}";
+    })
+    .registerNode(this->nodes);
 
     Node::Node(NodeId::var_set, [this](){ return peek().type == Tokens::TokenType::identifier; })
     .property("name", [this](NodeInstance& instance){ return getIdentifier().value; })
@@ -190,6 +270,11 @@ namespace Parser {
       }
       error({"Missing Token", "Expected '='"});
     }).require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return (void*)0;})
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      string name = instance.getProperty<string>("name");
+      Expression* expr = instance.getProperty<Expression*>("value");
+      stream << name << " = " << *expr;
+    })
     .registerNode(this->nodes);
 
     Node::Node(NodeId::return_stmt, [this](){ return tryconsume({Tokens::TokenType::Return}); })
@@ -199,13 +284,21 @@ namespace Parser {
       return parseExpr(this->funcReturnType);
     })
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return nullptr;})
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      Expression* expr = instance.getProperty<Expression*>("value");
+      stream << *expr;
+    })
     .registerNode(this->nodes);
     
     Node::Node(NodeId::asm_code, [this](){ return peek().type == Tokens::TokenType::Asm; })
     .property("code", [this](NodeInstance& instance){ return consume().value; })
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return nullptr;})
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      string code = instance.getProperty<string>("code");
+      stream << "'" << code << "'";
+    })
     .registerNode(this->nodes);
-
+    
     Node::Node(NodeId::operation_decl, [this](){ return tryconsume({Tokens::TokenType::operation}); })
     .property("symbol", [this](NodeInstance& instance){ return tryconsume({Tokens::TokenType::symbols}, {"Missing Token", "Expected symbols"}).value; })
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::open_angle}, {"Missing Token", "Expected '<'"}); return nullptr;})
@@ -222,7 +315,7 @@ namespace Parser {
         error({"Syntax Error", "Expected precedence specifier"});
       if (tryconsume({Tokens::TokenType::none}))
         return 0;
-      Tokens::Token clause = consume(); // ABOVE OR BELOW
+      Tokens::Token clause = consume(); //? ABOVE OR BELOW
       if (tryconsume({Tokens::TokenType::all})) {
         if (clause.type == Tokens::TokenType::above)
           return numeric_limits<int>::max();
@@ -272,7 +365,18 @@ namespace Parser {
       if (findOperation(op, this->operators) > -1)
         error({"Syntax Error", "Operation already exists"});
       this->operators.push_back(op);
-    }).registerNode(this->nodes);
+    })
+    .onPrint([](NodeInstance& instance, std::ostream& stream) {
+      Variable* var1 = instance.getProperty<Variable*>("operand1");
+      Variable* var2 = instance.getProperty<Variable*>("operand2");
+      string symbols = instance.getProperty<string>("symbol");
+      Type* retType = instance.getProperty<Type*>("retType");
+      NodeInstance* body = instance.getProperty<NodeInstance*>("body");
+
+      stream << "(" << var1->name << " : " << *(var1->t) << ") " << symbols << " (" << var2->name << " : " << *(var2->t) << " -> " << *retType << " : ";
+      body->print(stream);
+    })
+    .registerNode(this->nodes);
 
     Node::Node(NodeId::cast_decl, [this](){ return peek().type == Tokens::TokenType::cast || peek().type == Tokens::TokenType::autocast; })
     .property("auto", [this](NodeInstance& instance){ return consume().type == Tokens::TokenType::autocast; })
@@ -292,7 +396,17 @@ namespace Parser {
       if (findCast(cast, list) > -1)
         error({"Syntax Error", "Cast already exists"});
       list.push_back(cast);
-    }).registerNode(this->nodes);
+    })
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      bool autocast = instance.getProperty<bool>("auto");
+      Variable* var = instance.getProperty<Variable*>("operand");
+      Type* retType = instance.getProperty<Type*>("retType");
+      NodeInstance* body = instance.getProperty<NodeInstance*>("body");
+      stream << (autocast ? "AUTO" : "");
+      stream << var->name << " : " << *(var->t) << " -> " << *retType << " : ";
+      body->print(stream);
+    })
+    .registerNode(this->nodes);
 
     Node::Node(NodeId::if_stmt, [this](){ return tryconsume({Tokens::TokenType::If}); })
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::open_paren}, {"Missing Token", "Expected '('"}); return nullptr;})
@@ -300,6 +414,17 @@ namespace Parser {
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"}); return nullptr;})
     .property("body", [this](NodeInstance& instance){ return parseSingle(); })
     .property("else", [this](NodeInstance& instance){ return ((tryconsume({Tokens::TokenType::Else})) ? parseSingle() : nullptr); })
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      Expression* expr = instance.getProperty<Expression*>("expr");
+      NodeInstance* body = instance.getProperty<NodeInstance*>("body");
+      NodeInstance* elsebody = instance.getProperty<NodeInstance*>("else");
+      stream << '(' << *expr << ") ";
+      body->print(stream);
+      if (elsebody != nullptr) {
+        stream << " else ";
+        elsebody->print(stream);
+      }
+    })
     .registerNode(this->nodes);
 
     Node::Node(NodeId::while_stmt, [this](){ return tryconsume({Tokens::TokenType::While}); })
@@ -307,6 +432,12 @@ namespace Parser {
     .property("expr", [this](NodeInstance& instance){ return parseExpr(new Type{Type::Builtins::BOOLEAN}); })
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"}); return nullptr;})
     .property("body", [this](NodeInstance& instance){ return parseSingle(); })
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      Expression* expr = instance.getProperty<Expression*>("expr");
+      NodeInstance* body = instance.getProperty<NodeInstance*>("body");
+      stream << '(' << *expr << ") ";
+      body->print(stream);
+    })
     .registerNode(this->nodes);
 
     Node::Node(NodeId::do_while_stmt, [this](){ return tryconsume({Tokens::TokenType::Do}); })
@@ -316,8 +447,15 @@ namespace Parser {
     .property("expr", [this](NodeInstance& instance){ return parseExpr(new Type{Type::Builtins::BOOLEAN}); })
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"}); return nullptr;})
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return nullptr;})
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      Expression* expr = instance.getProperty<Expression*>("expr");
+      NodeInstance* body = instance.getProperty<NodeInstance*>("body");
+      stream << '(' << *expr << ") ";
+      body->print(stream);
+    })
     .registerNode(this->nodes);
 
+    //TODO
     Node::Node(NodeId::for_stmt, [this](){return tryconsume({Tokens::TokenType::For});})
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::open_paren}, {"Missing Token", "Expected '('"}); return nullptr;})
     .property("variable", [this](NodeInstance& instance){ return parseVar(); })
@@ -327,6 +465,16 @@ namespace Parser {
     .property("incr", [this](NodeInstance& instance){ return parseSingle(); })
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"}); return nullptr;}).require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"}); return nullptr;})
     .property("body", [this](NodeInstance& instance){ return parseSingle(); })
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      Variable* var = instance.getProperty<Variable*>("variable");
+      Expression* expr = instance.getProperty<Expression*>("expr");
+      NodeInstance* incr = instance.getProperty<NodeInstance*>("incr");
+      NodeInstance* body = instance.getProperty<NodeInstance*>("body");
+      stream << "(" << var->name << " : " << *(var->t) << "; " << *expr << "; ";
+      incr->print(stream);
+      stream << ") ";
+      body->print(stream);
+    })
     .registerNode(this->nodes);
 
     Node::Node(NodeId::alias_decl, [this](){return tryconsume({Tokens::TokenType::at});})
@@ -350,7 +498,17 @@ namespace Parser {
       string name = instance.getProperty<string>("name");
       vector<NodeInstance*> body = instance.getProperty<vector<NodeInstance*>>("body");
       this->aliases[name] = body;
-    }).notAdd().registerNode(this->nodes);
+    })
+    .onPrint([](NodeInstance& instance, std::ostream& stream){
+      string name = instance.getProperty<string>("name");
+      vector<NodeInstance*> body = instance.getProperty<vector<NodeInstance*>>("body");
+      stream << name << " = ";
+      for (NodeInstance* node : body) {
+        node->print(stream);
+        stream << '\n';
+      }
+    })
+    .notAdd().registerNode(this->nodes);
   }
 
   NodeInstance* Parser::parseSingle() {

@@ -53,18 +53,14 @@ int main(int argc, char** argv) {
   
   cout << endl << "TOKENS:" << endl;
 
-  for (Tokens::Token token : tokens) {
-    cout << token.toString() << endl;
-  }
+  tokenizer.print(std::cout);
 
   Parser::Parser parser{tokens};
   vector<Node::NodeInstance*> nodes = parser.parse();
 
   cout << endl << "NODES:" << endl;
 
-  for (Node::NodeInstance* instance : nodes) {
-    cout << instance->toString() << endl;
-  }
+  parser.print(std::cout);
 
 	return 0;
 }

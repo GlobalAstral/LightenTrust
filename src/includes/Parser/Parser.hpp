@@ -21,11 +21,16 @@ namespace Parser {
       };
 
       vector<Node::NodeInstance*> parse();
+      void print(std::ostream& stream);
 
     protected:
       virtual Tokens::Token null() { return Tokens::nullToken(); };
       virtual int getCurrentLine() { return peek(-1).line; };
-      virtual string getCurrentColumn() { return peek(-1).toString(); };
+      virtual string getCurrentColumn() { 
+        std::stringstream ss;
+        peek(-1).print(ss);
+        return ss.str(); 
+      };
       virtual bool equalCriteria(Tokens::Token a, Tokens::Token b) {
         if (a.type != b.type || (!a.value.empty() && !b.value.empty() && a.value != b.value))
           return false;

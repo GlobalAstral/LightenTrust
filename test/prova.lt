@@ -1,8 +1,4 @@
 
-@franco {
-  var a: int = 10;
-}
-
 func main() : int {
-  franco
+  return 10;
 };

@@ -6,6 +6,8 @@
 namespace Lits {  
   
   using namespace std;
+  class Literal;
+  std::ostream& operator<<(std::ostream& stream, const Literal& t);
   class Literal {
     public:
       enum class Type {
@@ -13,6 +15,7 @@ namespace Lits {
       };
       Literal(string value);
       Literal::Type getType();
+      friend std::ostream& operator<<(std::ostream& stream, const Literal& t);
     private:
       union {
         int i;

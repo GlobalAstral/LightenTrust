@@ -209,6 +209,7 @@ std::vector<Tokens::Token> Tokenizer::Tokenizer::tokenize() {
       }
     }
   }
+  this->output = tokens;
   return tokens;
 }
 
@@ -220,8 +221,17 @@ int Tokenizer::Tokenizer::getCurrentLine() {
   return this->line;
 }
 
-std::string Tokenizer::Tokenizer::getCurrentColumn() { return std::string(1, peek(-1));};
+std::string Tokenizer::Tokenizer::getCurrentColumn() { 
+  return std::string(1, peek(-1));
+};
 
 bool Tokenizer::Tokenizer::equalCriteria(char a, char b) {
   return a == b;
+}
+
+void Tokenizer::Tokenizer::print(std::ostream &stream) {
+  for (Tokens::Token token : this->output) {
+    token.print(stream);
+    stream << '\n';
+  }
 }

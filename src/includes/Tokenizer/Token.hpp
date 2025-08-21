@@ -16,7 +16,7 @@ namespace Tokens {
     TokenType type;
     unsigned int line;
     std::string value;
-    std::string toString();
+    void print(std::ostream& stream);
   };
 
   Token nullToken();

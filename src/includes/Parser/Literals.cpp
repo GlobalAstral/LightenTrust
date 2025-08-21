@@ -76,3 +76,35 @@ Lits::Literal::Literal(string value) {
 Lits::Literal::Type Lits::Literal::getType() {
   return this->type;
 }
+
+std::ostream &Lits::operator<<(std::ostream &stream, const Literal &t) {
+  switch (t.type) {
+    case Literal::Type::BOOLEAN :
+      stream << "BOOLEAN(" << t.u.b << ")";
+      break;
+    case Literal::Type::CHAR :
+      stream << "CHAR(" << t.u.c << ")";
+      break;
+    case Literal::Type::DOUBLE :
+      stream << "DOUBLE(" << t.u.d << ")";
+      break;
+    case Literal::Type::FLOAT :
+      stream << "FLOAT(" << t.u.f << ")";
+      break;
+    case Literal::Type::INT :
+      stream << "INT(" << t.u.i << ")";
+      break;
+    case Literal::Type::LONG :
+      stream << "LONG(" << t.u.l << ")";
+      break;
+    case Literal::Type::STRING :
+      stream << "STRING(" << t.u.s << ")";
+      break;
+    case Literal::Type::null :
+      stream << "NULL";
+      break;
+    default:
+      stream << "DEFAULT (HOW?)";
+  }
+  return stream;
+}
