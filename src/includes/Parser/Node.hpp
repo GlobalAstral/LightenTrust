@@ -103,7 +103,7 @@ namespace Node {
     Operation* op;
   };
 
-  enum class ExprType {//!            |           |           |            |         |                                |
+  enum class ExprType {//!                                                 |                                          |
     literal, variable, func_call, reference, dereference, subscript, dot_notation, cast, interface_ref, custom, interface_call
   };
 

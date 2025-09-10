@@ -651,13 +651,29 @@ namespace Parser {
 
   Node::Expression* Parser::parseExpr(Type* requiredType) {
     Node::Expression* expr = new Node::Expression();
+    if (tryconsume({Tokens::TokenType::symbols, .value = "&"})) {
+      Node::Expression* e = parseExpr(nullptr);
+      expr->type = ExprType::reference;
+      expr->variant = e;
+      expr->returnType = new Type(Type::Builtins::POINTER, false, string(), nullptr, {}, {}, e->returnType, nullptr);
+      return expr;
+    }
+    if (tryconsume({Tokens::TokenType::symbols, .value = "*"})) {
+      Node::Expression* e = parseExpr(nullptr);
+      if (e->returnType->pointsTo == nullptr)
+        error({"Syntax Error", "Can only dereference a pointer type"});
+      expr->type = ExprType::dereference;
+      expr->variant = e;
+      expr->returnType = e->returnType->pointsTo;
+      return expr;
+    }
+
     if (peek().type == Tokens::TokenType::literal) {
       Lits::Literal* lit = new Lits::Literal(consume().value);
       expr->type = ExprType::literal;
       expr->variant = lit;
       expr->returnType = literalType(lit);
     } else if (peek().type == Tokens::TokenType::identifier) {
-      //TODO SUBSCRIPT, DOT_NOTATION
       string name = consume().value;
       if (tryconsume({Tokens::TokenType::open_paren})) {
         vector<Node::Expression*> params;
@@ -753,6 +769,28 @@ namespace Parser {
           expr->variant = var;
         }
       }
+    }
+
+    if (tryconsume({Tokens::TokenType::open_square})) {
+      Expression* index = parseExpr(new Type(Type::Builtins::UINT));
+      Expression* e = new Expression();
+      e->type = ExprType::subscript;
+      e->returnType = expr->returnType->pointsTo;
+      e->variant = new SubscriptExpr{expr, index};
+      tryconsume({Tokens::TokenType::close_square}, {"Missing Token", "Expected ']'"});
+      expr = e;
+    }
+
+    if (tryconsume({Tokens::TokenType::As})) {
+      Type* t = parseType();
+      int castIndex = findCast({expr->returnType, t}, this->casts);
+      if (castIndex < 0)
+        error({"Syntax Error", "Cast does not exist"});
+      Node::Expression* e = new Node::Expression();
+      e->type = ExprType::cast;
+      e->returnType = t;
+      e->variant = new CastExpr{expr, &(this->casts[castIndex])};
+      expr = e;
     }
 
     if (requiredType != nullptr && *(expr->returnType) != *requiredType) {
