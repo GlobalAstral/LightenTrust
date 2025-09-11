@@ -455,7 +455,6 @@ namespace Parser {
     })
     .registerNode(this->nodes);
 
-    //TODO
     Node::Node(NodeId::for_stmt, [this](){return tryconsume({Tokens::TokenType::For});})
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::open_paren}, {"Missing Token", "Expected '('"}); return nullptr;})
     .property("variable", [this](NodeInstance& instance){ return parseVar(); })
@@ -651,14 +650,14 @@ namespace Parser {
 
   Node::Expression* Parser::parseExpr(Type* requiredType) {
     Node::Expression* expr = new Node::Expression();
-    if (tryconsume({Tokens::TokenType::symbols, .value = "&"})) {
+    if (tryconsume({.type = Tokens::TokenType::symbols, .value = "&"})) {
       Node::Expression* e = parseExpr(nullptr);
       expr->type = ExprType::reference;
       expr->variant = e;
       expr->returnType = new Type(Type::Builtins::POINTER, false, string(), nullptr, {}, {}, e->returnType, nullptr);
       return expr;
     }
-    if (tryconsume({Tokens::TokenType::symbols, .value = "*"})) {
+    if (tryconsume({.type = Tokens::TokenType::symbols, .value = "*"})) {
       Node::Expression* e = parseExpr(nullptr);
       if (e->returnType->pointsTo == nullptr)
         error({"Syntax Error", "Can only dereference a pointer type"});
