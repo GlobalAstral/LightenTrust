@@ -1,4 +1,12 @@
 
+operation *<a : int, b: int, above all> int asm {
+  mul ecx
+};
+
+operation +<a : int, b: int, below int*int|int > int asm {
+  add eax, ecx
+};
+
 func main() : int {
-  return 10;
+  return 10*2 + 5;
 };

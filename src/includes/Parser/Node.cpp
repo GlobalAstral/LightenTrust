@@ -346,12 +346,28 @@ std::ostream &Node::operator<<(std::ostream &stream, const Expression &e) {
         os << "(" << var->name << " : " << *(var->t) << ")";
       }
     }
-    
+    void operator()(FuncCall* func_call) const {
+      func_call->func->print(os);
+      os << " WITH PARAMS (";
+      for (Expression* e : func_call->params) {
+        os << *e << ", ";
+      }
+      os << ")";
+    }
+    void operator()(InterfaceCall* interface_call) const {
+      os << *(interface_call->interface) << " WITH PARAMS (";
+      for (Expression* e : interface_call->params) {
+        os << *e << ", ";
+      }
+      os << ")";
+    }
+    void operator()(DotNotation* exprs) const {
+      os << "(" <<  *(exprs->base) << ")" << ".(" << *(exprs->after) << ")";
+    }
     void operator()(CastExpr* cast) const {
       os << *(cast->expr) << "[" << *(cast->cast->a) << "]" << " as " << *(cast->cast->b) << " : ";
       cast->cast->body->print(os);
     }
-
     void operator()(CustomExpr* custom) const {
       os << (custom->op->unary ? "UNARY " : "BINARY ");
       os << *(custom->a) << "[" << *(custom->op->a) << "] " << custom->op->symbols << " " << *(custom->b) << "[" << *(custom->op->b) << "]" << "<" << custom->op->precedence << "> : ";

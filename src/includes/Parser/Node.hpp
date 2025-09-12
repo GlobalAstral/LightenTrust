@@ -103,7 +103,21 @@ namespace Node {
     Operation* op;
   };
 
-  //TODO DOT NOTATION AND INTERFACE CALL
+  struct FuncCall {
+    NodeInstance* func;
+    vector<Expression*> params;
+  };
+
+  struct InterfaceCall {
+    Expression* interface;
+    vector<Expression*> params;
+  };
+
+  struct DotNotation {
+    Expression* base;
+    Expression* after;
+  };
+
   enum class ExprType {
     literal, variable, func_call, reference, dereference, subscript, dot_notation, cast, interface_ref, custom, interface_call
   };
@@ -111,7 +125,7 @@ namespace Node {
   struct Expression {
     ExprType type;
     Type* returnType;
-    variant<Lits::Literal*, Variable*, NodeInstance*, Expression*, SubscriptExpr*, vector<Variable*>, CastExpr*, CustomExpr*> variant;
+    variant<Lits::Literal*, Variable*, FuncCall*, InterfaceCall*, NodeInstance*, Expression*, SubscriptExpr*, DotNotation*, CastExpr*, CustomExpr*> variant;
   };
 
   std::ostream& operator<<(std::ostream& stream, const Type& t);

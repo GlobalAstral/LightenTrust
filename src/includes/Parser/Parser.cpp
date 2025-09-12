@@ -361,7 +361,8 @@ namespace Parser {
       string symbols = instance.getProperty<string>("symbol");
       Type* retType = instance.getProperty<Type*>("retType");
       NodeInstance* body = instance.getProperty<NodeInstance*>("body");
-      Operation op{var2 == nullptr, symbols, var1->t, ((var2 == nullptr) ? nullptr : var2->t), retType, body};
+      int prec = instance.getProperty<int>("precedence");
+      Operation op{var2 == nullptr, symbols, var1->t, ((var2 == nullptr) ? nullptr : var2->t), retType, body, prec};
       if (findOperation(op, this->operators) > -1)
         error({"Syntax Error", "Operation already exists"});
       this->operators.push_back(op);
@@ -522,7 +523,7 @@ namespace Parser {
 
   Node::Type *Parser::parseType() {
     bool mut = tryconsume({Tokens::TokenType::Mutable});
-    if (tryconsume({.type=Tokens::TokenType::symbols, .value="&"}))
+    if (tryconsume({.type=Tokens::TokenType::symbols, .value="*"}))
       return new Type(Type::Builtins::POINTER, mut, string(), parseType());
     if (tryconsume({Tokens::TokenType::Int})) {
       return new Type(Type::Builtins::INT, mut);
@@ -674,6 +675,7 @@ namespace Parser {
       expr->returnType = literalType(lit);
     } else if (peek().type == Tokens::TokenType::identifier) {
       string name = consume().value;
+      int old_peek = this->_peek;
       if (tryconsume({Tokens::TokenType::open_paren})) {
         vector<Node::Expression*> params;
         bool found = doUntilFind({Tokens::TokenType::close_paren}, [this, &params](){
@@ -710,11 +712,17 @@ namespace Parser {
           if (!found) continue;
           expr->returnType = retType;
           expr->type = ExprType::func_call;
-          expr->variant = func;
+          expr->variant = new FuncCall{func, params};
           funcExists = true;
           break;
         }
-        if (!funcExists) error({"Syntax Error", "Function does not exist"});
+        if (!funcExists) {
+          this->_peek = old_peek;
+          Node::Variable* var = getVar(new Variable{nullptr, name}, this->vars);
+          expr->type = ExprType::variable;
+          expr->returnType = var->t;
+          expr->variant = var;
+        }
       } else {
         vector<Node::NodeInstance *> funcsFound = nameIsFunction(name, this->functions);
         if (funcsFound.size() > 0) {
@@ -780,6 +788,44 @@ namespace Parser {
       expr = e;
     }
 
+    if (tryconsume({Tokens::TokenType::dot})) {
+      if (expr->returnType->type != Type::Builtins::STRUCT && expr->returnType->type != Type::Builtins::UNION)
+        error({"Syntax Error", "Cannot use dot notation on a non struct or union type"});
+      
+      int varIndex = vars.size();
+      for (Variable* var : expr->returnType->fields) {
+        vars.push_back(var);
+      }
+      Expression* e = parseExpr(nullptr);
+      if (varIndex >= 0 && varIndex < vars.size())
+        vars.erase(vars.begin()+varIndex);
+      
+      Expression* tmp = new Expression();
+      tmp->type = ExprType::dot_notation;
+      tmp->returnType = e->returnType;
+      tmp->variant = new DotNotation{expr, e};
+      expr = tmp;
+    }
+
+    if (tryconsume({Tokens::TokenType::open_paren})) {
+      if (expr->returnType->type != Type::Builtins::INTERFACE)
+        error({"Syntax Error", "Cannot call a non interface type"});
+      vector<Expression*> params;
+      for (int i = 0; i < expr->returnType->params.size(); i++) {
+        if (i > 0) 
+          tryconsume({Tokens::TokenType::comma}, {"Missing Token", "Expected ','"});
+        Type* req_param = expr->returnType->params[i];
+        Expression* e = parseExpr(req_param);
+        params.push_back(e);
+      }
+      tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"});
+      Expression* ex = new Expression();
+      ex->type = ExprType::interface_call;
+      ex->returnType = expr->returnType->returnType;
+      ex->variant = new InterfaceCall{expr, params};
+      expr = ex;
+    }
+
     if (tryconsume({Tokens::TokenType::As})) {
       Type* t = parseType();
       int castIndex = findCast({expr->returnType, t}, this->casts);
@@ -790,6 +836,43 @@ namespace Parser {
       e->returnType = t;
       e->variant = new CastExpr{expr, &(this->casts[castIndex])};
       expr = e;
+    }
+
+    if (peek().type == Tokens::TokenType::symbols) {
+      string symbols = consume().value;
+      Expression* r = parseExpr(nullptr);
+      Operation* op = new Operation();
+      bool found = false;
+
+      for (Operation oper : this->operators) {
+        if (!oper.unary && *(oper.a) == *(expr->returnType) && *(oper.b) == *(r->returnType) && symbols == oper.symbols) {
+          *op = oper;
+          found = true;
+          break;
+        }
+      }
+      if (!found) error({"Syntax Error", "Unknown operation between operands"});
+
+      CustomExpr* left = new CustomExpr();
+      left->a = expr;
+      left->b = r;
+      left->op = op;
+
+      if (r->type == ExprType::custom && op->precedence > std::get<CustomExpr*>(r->variant)->op->precedence) {
+        left->b = std::get<CustomExpr*>(r->variant)->a;
+        Expression* ltmp = new Expression();
+        ltmp->type = ExprType::custom;
+        ltmp->returnType = left->op->r;
+        ltmp->variant = left;
+        std::get<CustomExpr*>(r->variant)->a = ltmp;
+        expr = r;
+      } else {
+        Expression* tmp = new Expression();
+        tmp->type = ExprType::custom;
+        tmp->returnType = op->r;
+        tmp->variant = left;
+        expr = tmp;
+      }
     }
 
     if (requiredType != nullptr && *(expr->returnType) != *requiredType) {
