@@ -657,8 +657,7 @@ namespace Parser {
       expr->variant = e;
       expr->returnType = new Type(Type::Builtins::POINTER, false, string(), nullptr, {}, {}, e->returnType, nullptr);
       return expr;
-    }
-    if (tryconsume({.type = Tokens::TokenType::symbols, .value = "*"})) {
+    } else if (tryconsume({.type = Tokens::TokenType::symbols, .value = "*"})) {
       Node::Expression* e = parseExpr(nullptr);
       if (e->returnType->pointsTo == nullptr)
         error({"Syntax Error", "Can only dereference a pointer type"});
@@ -666,6 +665,24 @@ namespace Parser {
       expr->variant = e;
       expr->returnType = e->returnType->pointsTo;
       return expr;
+    } else if (peek().type == Tokens::TokenType::symbols) {
+      string symbols = consume().value;
+      Expression* e = parseExpr(nullptr);
+      Operation* op = new Operation();
+      bool found = false;
+
+      for (Operation oper : this->operators) {
+        if (oper.unary && *(oper.a) == *(e->returnType) && symbols == oper.symbols) {
+          *op = oper;
+          found = true;
+          break;
+        }
+      }
+      if (!found) error({"Syntax Error", "Unknown operation between operands"});
+      CustomExpr* tmp = new CustomExpr{e, nullptr, op};
+      expr->type = ExprType::custom;
+      expr->returnType = op->r;
+      expr->variant = tmp;
     }
 
     if (peek().type == Tokens::TokenType::literal) {

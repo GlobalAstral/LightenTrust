@@ -370,13 +370,20 @@ std::ostream &Node::operator<<(std::ostream &stream, const Expression &e) {
     }
     void operator()(CustomExpr* custom) const {
       os << (custom->op->unary ? "UNARY " : "BINARY ");
-      os << *(custom->a) << "[" << *(custom->op->a) << "] " << custom->op->symbols << " " << *(custom->b) << "[" << *(custom->op->b) << "]" << "<" << custom->op->precedence << "> : ";
+      os << *(custom->a) << "[" << *(custom->op->a) << "] " << custom->op->symbols << " ";
+      if (custom->b != nullptr)
+        os << "[" << *(custom->op->b) << "]";
+      os << "<" << custom->op->precedence << "> : ";
       custom->op->body->print(os);
     }
   };
-
-  stream << e.type << " -> " << *(e.returnType) << " : ";
-  std::visit(Visitor{stream}, e.variant);
+  if (&e != nullptr && e.returnType != nullptr)
+    stream << e.type << " -> " << *(e.returnType) << " : ";
+  else if (&e != nullptr)
+    stream << e.type << " -> NULLPTR : ";
+  
+  if (&e != nullptr)
+    std::visit(Visitor{stream}, e.variant);
 
   return stream;
 }
