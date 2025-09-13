@@ -5,6 +5,7 @@
 #include <functional>
 
 #include <Utils/Errors.hpp>
+#include <sstream>
 
 namespace Processor {
   template <typename T>
@@ -45,6 +46,19 @@ namespace Processor {
         return found; 
       };
 
+      void doUntilFind(T toFind, std::function<void()> func, Errors::CompactError notfounderr) {
+        bool found = false;
+        while (hasPeek()) {
+          if (tryconsume(toFind)) {
+            found = true; 
+            break;
+          }
+          func();
+        } 
+        if (!found)
+          error(notfounderr);
+      };
+
       bool doUntilFind(T toFind, std::function<void()> func, T sep, Errors::CompactError error) {
         bool found = false;
         while (hasPeek()) {
@@ -60,6 +74,24 @@ namespace Processor {
           tryconsume(sep, error);
         } 
         return found; 
+      };
+
+      void doUntilFind(T toFind, std::function<void()> func, T sep, Errors::CompactError sepnotfound, Errors::CompactError notfounderr) {
+        bool found = false;
+        while (hasPeek()) {
+          if (tryconsume(toFind)) {
+            found = true; 
+            break;
+          }
+          func();
+          if (tryconsume(toFind)) {
+            found = true; 
+            break;
+          }
+          tryconsume(sep, sepnotfound);
+        } 
+        if (!found)
+          error(notfounderr);
       };
   };
 }

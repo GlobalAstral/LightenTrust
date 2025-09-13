@@ -70,6 +70,8 @@ std::vector<Tokens::Token> Tokenizer::Tokenizer::tokenize() {
       tokens.push_back({Tokens::TokenType::public_closure, line});
     } else if (tryconsume('|')) {
       tokens.push_back({Tokens::TokenType::pipe, line});
+    } else if (tryconsume('#')) {
+      tokens.push_back({Tokens::TokenType::preprocessor, line});
     } else if (peek() == '-' && peek(1) == '>') {
       tokens.push_back({Tokens::TokenType::arrow, line});
       consume(2);
@@ -94,88 +96,102 @@ std::vector<Tokens::Token> Tokenizer::Tokenizer::tokenize() {
       tokens.push_back({Tokens::TokenType::literal, line, s});
     } else {
       stringstream buf;
-      if (isalpha(peek())) {
-        while (isalnum(peek()))
+      if (isalpha(peek()) || peek() == '_') {
+        while (isalnum(peek()) || peek() == '_')
           buf << consume();
         string buffer = string(buf.str());
         if (buffer == "int") {
-          tokens.push_back({Tokens::TokenType::Int, line});
+          tokens.push_back({Tokens::TokenType::Int, line, buffer});
         } else if (buffer == "uint") {
-          tokens.push_back({Tokens::TokenType::Uint, line});
+          tokens.push_back({Tokens::TokenType::Uint, line, buffer});
         } else if (buffer == "float") {
-          tokens.push_back({Tokens::TokenType::Float, line});
+          tokens.push_back({Tokens::TokenType::Float, line, buffer});
         } else if (buffer == "long") {
-          tokens.push_back({Tokens::TokenType::Long, line});
+          tokens.push_back({Tokens::TokenType::Long, line, buffer});
         } else if (buffer == "ulong") {
-          tokens.push_back({Tokens::TokenType::Ulong, line});
+          tokens.push_back({Tokens::TokenType::Ulong, line, buffer});
         } else if (buffer == "double") {
-          tokens.push_back({Tokens::TokenType::Double, line});
+          tokens.push_back({Tokens::TokenType::Double, line, buffer});
         } else if (buffer == "char") {
-          tokens.push_back({Tokens::TokenType::Char, line});
+          tokens.push_back({Tokens::TokenType::Char, line, buffer});
         } else if (buffer == "byte") {
-          tokens.push_back({Tokens::TokenType::Byte, line});
+          tokens.push_back({Tokens::TokenType::Byte, line, buffer});
         } else if (buffer == "string") {
-          tokens.push_back({Tokens::TokenType::String, line});
+          tokens.push_back({Tokens::TokenType::String, line, buffer});
         } else if (buffer == "void") {
-          tokens.push_back({Tokens::TokenType::Void, line});
+          tokens.push_back({Tokens::TokenType::Void, line, buffer});
         } else if (buffer == "struct") {
-          tokens.push_back({Tokens::TokenType::Struct, line});
+          tokens.push_back({Tokens::TokenType::Struct, line, buffer});
         } else if (buffer == "union") {
-          tokens.push_back({Tokens::TokenType::Union, line});
+          tokens.push_back({Tokens::TokenType::Union, line, buffer});
         } else if (buffer == "interface") {
-          tokens.push_back({Tokens::TokenType::Interface, line});
+          tokens.push_back({Tokens::TokenType::Interface, line, buffer});
         } else if (buffer == "return") {
-          tokens.push_back({Tokens::TokenType::Return, line});
+          tokens.push_back({Tokens::TokenType::Return, line, buffer});
         } else if (buffer == "mutable") {
-          tokens.push_back({Tokens::TokenType::Mutable, line});
+          tokens.push_back({Tokens::TokenType::Mutable, line, buffer});
         } else if (buffer == "inline") {
-          tokens.push_back({Tokens::TokenType::Inline, line});
+          tokens.push_back({Tokens::TokenType::Inline, line, buffer});
         } else if (buffer == "type") {
-          tokens.push_back({Tokens::TokenType::Type, line});
+          tokens.push_back({Tokens::TokenType::Type, line, buffer});
         } else if (buffer == "if") {
-          tokens.push_back({Tokens::TokenType::If, line});
+          tokens.push_back({Tokens::TokenType::If, line, buffer});
         } else if (buffer == "else") {
-          tokens.push_back({Tokens::TokenType::Else, line});
+          tokens.push_back({Tokens::TokenType::Else, line, buffer});
         } else if (buffer == "while") {
-          tokens.push_back({Tokens::TokenType::While, line});
+          tokens.push_back({Tokens::TokenType::While, line, buffer});
         } else if (buffer == "do") {
-          tokens.push_back({Tokens::TokenType::Do, line});
+          tokens.push_back({Tokens::TokenType::Do, line, buffer});
         } else if (buffer == "for") {
-          tokens.push_back({Tokens::TokenType::For, line});
+          tokens.push_back({Tokens::TokenType::For, line, buffer});
         } else if (buffer == "namespace") {
-          tokens.push_back({Tokens::TokenType::Namespace, line});
+          tokens.push_back({Tokens::TokenType::Namespace, line, buffer});
         } else if (buffer == "defer") {
-          tokens.push_back({Tokens::TokenType::Defer, line});
+          tokens.push_back({Tokens::TokenType::Defer, line, buffer});
         } else if (buffer == "as") {
-          tokens.push_back({Tokens::TokenType::As, line});
+          tokens.push_back({Tokens::TokenType::As, line, buffer});
         } else if (buffer == "boolean") {
-          tokens.push_back({Tokens::TokenType::Boolean, line});
+          tokens.push_back({Tokens::TokenType::Boolean, line, buffer});
         } else if (buffer == "func") {
-          tokens.push_back({Tokens::TokenType::Func, line});
+          tokens.push_back({Tokens::TokenType::Func, line, buffer});
         } else if (buffer == "var") {
-          tokens.push_back({Tokens::TokenType::Var, line});
+          tokens.push_back({Tokens::TokenType::Var, line, buffer});
         } else if (buffer == "public") {
-          tokens.push_back({Tokens::TokenType::Public, line});
+          tokens.push_back({Tokens::TokenType::Public, line, buffer});
         } else if (buffer == "import") {
-          tokens.push_back({Tokens::TokenType::import, line});
+          tokens.push_back({Tokens::TokenType::import, line, buffer});
         } else if (buffer == "true") {
           tokens.push_back({Tokens::TokenType::literal, line, "true"});
         } else if (buffer == "false") {
           tokens.push_back({Tokens::TokenType::literal, line, "false"});
         } else if (buffer == "below") {
-          tokens.push_back({Tokens::TokenType::below, line});
+          tokens.push_back({Tokens::TokenType::below, line, buffer});
         } else if (buffer == "above") {
-          tokens.push_back({Tokens::TokenType::above, line});
+          tokens.push_back({Tokens::TokenType::above, line, buffer});
         } else if (buffer == "all") {
-          tokens.push_back({Tokens::TokenType::all, line});
+          tokens.push_back({Tokens::TokenType::all, line, buffer});
         } else if (buffer == "none") {
-          tokens.push_back({Tokens::TokenType::none, line});
+          tokens.push_back({Tokens::TokenType::none, line, buffer});
         } else if (buffer == "operation") {
-          tokens.push_back({Tokens::TokenType::operation, line});
+          tokens.push_back({Tokens::TokenType::operation, line, buffer});
         } else if (buffer == "cast") {
-          tokens.push_back({Tokens::TokenType::cast, line});
+          tokens.push_back({Tokens::TokenType::cast, line, buffer});
         } else if (buffer == "autocast") {
-          tokens.push_back({Tokens::TokenType::autocast, line});
+          tokens.push_back({Tokens::TokenType::autocast, line, buffer});
+        } else if (buffer == "define") {
+          tokens.push_back({Tokens::TokenType::define, line, buffer});
+        } else if (buffer == "ifdef") {
+          tokens.push_back({Tokens::TokenType::ifdef, line, buffer});
+        } else if (buffer == "ifndef") {
+          tokens.push_back({Tokens::TokenType::ifndef, line, buffer});
+        } else if (buffer == "undef") {
+          tokens.push_back({Tokens::TokenType::undef, line, buffer});
+        } else if (buffer == "keyword") {
+          tokens.push_back({Tokens::TokenType::keyword, line, buffer});
+        } else if (buffer == "macro") {
+          tokens.push_back({Tokens::TokenType::macro, line, buffer});
+        } else if (buffer == "endif") {
+          tokens.push_back({Tokens::TokenType::endif, line, buffer});
         } else if (buffer == "asm") {
           while (tryconsume(' ') || tryconsume('\r'));
           while (tryconsume('\n')) {line++;};

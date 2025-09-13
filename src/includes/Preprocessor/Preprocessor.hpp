@@ -2,38 +2,33 @@
 
 #include <Utils/Processor.hpp>
 #include <Tokenizer/Token.hpp>
+#include <Utils/Map.hpp>
+#include <utility>
 
-//TODO DEFINE, IF, UNDEF AND C NORMAL STUFF
+namespace Preprocessor {
+  class Preprocessor : public Processor::Processor<Tokens::Token> {
+    public:
+      Preprocessor(std::vector<Tokens::Token> tokens);
+      void print(std::ostream& stream);
+      std::vector<Tokens::Token> preprocess();
+    protected:
+      void preprocessSingle(std::vector<Tokens::Token>& out);
+      bool isUnique(std::string name);
+      void mustBeUnique(std::string name);
+      void mustExist(std::string name);
+      std::string getIdentifier();
+      void withTokens(std::vector<Tokens::Token>& newTokens, int newPeek, std::function<void()> lambda);
+      void withTokens(std::vector<Tokens::Token>& newTokens, std::function<void()> lambda);
 
-/*
+      Tokens::Token null();
+      int getCurrentLine();
+      std::string getCurrentColumn();
+      bool equalCriteria(Tokens::Token a, Tokens::Token b);
+      std::vector<Tokens::Token>& output = *(new std::vector<Tokens::Token>());
 
-$keyword class(cls) struct class_$0 \     - LIKE A NORMAL MACRO BUT NO () NEEDED AND MIGHT HAVE UNIQUE
-  NEWLINE EXAMPLE                           FEATURES
-
-class Persona {
-  string nome
-  string cognome;
-  int eta
-};
-
-struct class_Persona {
-  string nome;
-  string cognome;
-  int eta;
-};
-
-*/
-
-class Preprocessor : public Processor::Processor<Tokens::Token> {
-  public:
-    Preprocessor(std::vector<Tokens::Token> tokens);
-    std::vector<Tokens::Token> preprocess();
-    void print(std::ostream& stream);
-  private:
-    virtual Tokens::Token null();
-    virtual int getCurrentLine();
-    virtual std::string getCurrentColumn();
-    virtual bool equalCriteria(Tokens::Token a, Tokens::Token b);
-
-    std::vector<Tokens::Token> output;
-};
+      Map::Map<std::string, std::vector<Tokens::Token>> definitions;
+      Map::Map<std::string, std::vector<Tokens::Token>> internal;
+      Map::Map<std::string, std::pair<std::vector<std::string>, std::vector<Tokens::Token>>> macros;
+      Map::Map<std::string, std::pair<Tokens::Token, std::vector<Tokens::Token>>> keywords;
+  };
+}

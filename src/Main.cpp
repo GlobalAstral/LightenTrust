@@ -7,6 +7,7 @@
 
 #include <Utils/Constants.hpp>
 #include <Tokenizer/Tokenizer.hpp>
+#include <Preprocessor/Preprocessor.hpp>
 #include <Parser/Parser.hpp>
 
 using std::cout;
@@ -54,6 +55,12 @@ int main(int argc, char** argv) {
   cout << endl << "TOKENS:" << endl;
 
   tokenizer.print(std::cout);
+
+  Preprocessor::Preprocessor preprocessor(tokens);
+  vector<Tokens::Token> toks = preprocessor.preprocess();
+
+  cout << endl << "PREPROCESSED:" << endl;
+  preprocessor.print(std::cout);
 
   Parser::Parser parser{tokens};
   vector<Node::NodeInstance*> nodes = parser.parse();

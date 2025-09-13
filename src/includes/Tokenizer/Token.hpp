@@ -10,6 +10,7 @@ namespace Tokens {
     Var, Int, Uint, Float, Long, Ulong, Double, Char, Byte, Boolean, String, Void, Mutable, Struct, Union, Interface, As,
     Return, Asm, Type, If, Else, While, Do, For, Namespace, Defer, Func, Inline, Public,
     import, public_closure, below, above, all, none, operation, cast, autocast,
+    preprocessor, define, ifdef, ifndef, endif, undef, keyword, macro
   };
 
   struct Token {

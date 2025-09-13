@@ -65,6 +65,14 @@ std::string getTypeAsString(Tokens::TokenType type) {
     case Tokens::TokenType::autocast: return "AUTOCAST";
     case Tokens::TokenType::arrow: return "ARROW";
     case Tokens::TokenType::at: return "AT";
+    case Tokens::TokenType::define: return "DEFINE";
+    case Tokens::TokenType::ifdef: return "IFDEF";
+    case Tokens::TokenType::ifndef: return "IFNDEF";
+    case Tokens::TokenType::endif: return "ENDIF";
+    case Tokens::TokenType::undef: return "UNDEF";
+    case Tokens::TokenType::keyword: return "KEYWORD";
+    case Tokens::TokenType::macro: return "MACRO";
+    case Tokens::TokenType::preprocessor: return "PREPROCESSOR";
     default: return "NULL";
   }
 }

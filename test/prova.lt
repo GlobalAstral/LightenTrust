@@ -1,9 +1,4 @@
 
-operation -<a : int, above all> int asm {
-  not eax
-  inc eax
-};
+#define FRANCO 0#
 
-func main() : int {
-  return -2;
-};
+FRANCO
