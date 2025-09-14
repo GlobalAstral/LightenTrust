@@ -1,1 +1,9 @@
 
+#template foreach<T>(v, list)[body] for (__i : int; __i < sizeof(list); __i = __i + 1) {
+  var v = list[__i];
+  body
+}#
+
+foreach<int>(i : int, arr) {
+  int
+}

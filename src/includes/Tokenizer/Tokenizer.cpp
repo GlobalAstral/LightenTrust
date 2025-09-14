@@ -192,6 +192,14 @@ std::vector<Tokens::Token> Tokenizer::Tokenizer::tokenize() {
           tokens.push_back({Tokens::TokenType::macro, line, buffer});
         } else if (buffer == "endif") {
           tokens.push_back({Tokens::TokenType::endif, line, buffer});
+        } else if (buffer == "logi") {
+          tokens.push_back({Tokens::TokenType::logi, line, buffer});
+        } else if (buffer == "logw") {
+          tokens.push_back({Tokens::TokenType::logw, line, buffer});
+        } else if (buffer == "loge") {
+          tokens.push_back({Tokens::TokenType::loge, line, buffer});
+        } else if (buffer == "template") {
+          tokens.push_back({Tokens::TokenType::_template, line, buffer});
         } else if (buffer == "asm") {
           while (tryconsume(' ') || tryconsume('\r'));
           while (tryconsume('\n')) {line++;};

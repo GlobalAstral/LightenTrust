@@ -6,6 +6,14 @@
 #include <utility>
 
 namespace Preprocessor {
+
+  struct Template {
+    std::vector<std::string> generics;
+    std::vector<std::string> params;
+    std::vector<Tokens::Token> content;
+    std::string body;
+  };
+
   class Preprocessor : public Processor::Processor<Tokens::Token> {
     public:
       Preprocessor(std::vector<Tokens::Token> tokens);
@@ -17,8 +25,9 @@ namespace Preprocessor {
       void mustBeUnique(std::string name);
       void mustExist(std::string name);
       std::string getIdentifier();
-      void withTokens(std::vector<Tokens::Token>& newTokens, int newPeek, std::function<void()> lambda);
-      void withTokens(std::vector<Tokens::Token>& newTokens, std::function<void()> lambda);
+      void withTokens(std::vector<Tokens::Token>& newTokens, int newPeek, std::function<void(std::vector<Tokens::Token>&, int&)> lambda);
+      void withTokens(std::vector<Tokens::Token>& newTokens, std::function<void(std::vector<Tokens::Token>&, int&)> lambda);
+      void preprocess(std::vector<Tokens::Token>& out);
 
       Tokens::Token null();
       int getCurrentLine();
@@ -30,5 +39,6 @@ namespace Preprocessor {
       Map::Map<std::string, std::vector<Tokens::Token>> internal;
       Map::Map<std::string, std::pair<std::vector<std::string>, std::vector<Tokens::Token>>> macros;
       Map::Map<std::string, std::pair<Tokens::Token, std::vector<Tokens::Token>>> keywords;
+      Map::Map<std::string, Template> templates;
   };
 }

@@ -72,6 +72,10 @@ std::string getTypeAsString(Tokens::TokenType type) {
     case Tokens::TokenType::undef: return "UNDEF";
     case Tokens::TokenType::keyword: return "KEYWORD";
     case Tokens::TokenType::macro: return "MACRO";
+    case Tokens::TokenType::logi: return "LOGI";
+    case Tokens::TokenType::logw: return "LOGW";
+    case Tokens::TokenType::loge: return "LOGE";
+    case Tokens::TokenType::_template: return "TEMPLATE";
     case Tokens::TokenType::preprocessor: return "PREPROCESSOR";
     default: return "NULL";
   }
