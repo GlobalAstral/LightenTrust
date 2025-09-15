@@ -460,11 +460,35 @@ namespace Parser {
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::open_paren}, {"Missing Token", "Expected '('"}); return nullptr;})
     .property("variable", [this](NodeInstance& instance){ return parseVar(); })
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return nullptr;})
-    .property("expr", [this](NodeInstance& instance){ return parseExpr(new Type{Type::Builtins::BOOLEAN}); })
+    .property("expr", [this](NodeInstance& instance){
+      Variable* var = instance.getProperty<Variable*>("variable");
+      int varIndex = vars.size();
+      vars.push_back(var);
+      Expression* ret = parseExpr(new Type{Type::Builtins::BOOLEAN});
+      if (varIndex >= 0 && varIndex < vars.size())
+        vars.erase(vars.begin()+varIndex);
+      return ret;
+    })
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::semicolon}, {"Missing Token", "Expected ';'"}); return nullptr;})
-    .property("incr", [this](NodeInstance& instance){ return parseSingle(); })
+    .property("incr", [this](NodeInstance& instance){
+      Variable* var = instance.getProperty<Variable*>("variable");
+      int varIndex = vars.size();
+      vars.push_back(var);
+      NodeInstance* ret = parseSingle();
+      if (varIndex >= 0 && varIndex < vars.size())
+        vars.erase(vars.begin()+varIndex);
+      return ret;
+    })
     .require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"}); return nullptr;}).require([this](NodeInstance& instance){tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')'"}); return nullptr;})
-    .property("body", [this](NodeInstance& instance){ return parseSingle(); })
+    .property("body", [this](NodeInstance& instance){
+      Variable* var = instance.getProperty<Variable*>("variable");
+      int varIndex = vars.size();
+      vars.push_back(var);
+      NodeInstance* ret = parseSingle();
+      if (varIndex >= 0 && varIndex < vars.size())
+        vars.erase(vars.begin()+varIndex);
+      return ret;
+    })
     .onPrint([](NodeInstance& instance, std::ostream& stream){
       Variable* var = instance.getProperty<Variable*>("variable");
       Expression* expr = instance.getProperty<Expression*>("expr");
@@ -649,9 +673,29 @@ namespace Parser {
     return foundFuncs;
   }
 
+  bool Parser::peekIsAngles() {
+    return peek().type == Tokens::TokenType::open_angle || peek().type == Tokens::TokenType::close_angle;
+  }
+
+  Tokens::Token Parser::anglesToSymbols() {
+    std::stringstream ss;
+    while (tryconsume({Tokens::TokenType::open_angle}))
+      ss << "<";
+    while (tryconsume({Tokens::TokenType::close_angle}))
+      ss << ">";
+    return Tokens::Token{.type = Tokens::TokenType::symbols, .value=ss.str()};
+  }
+
   Node::Expression* Parser::parseExpr(Type* requiredType) {
     Node::Expression* expr = new Node::Expression();
-    if (tryconsume({.type = Tokens::TokenType::symbols, .value = "&"})) {
+    if (tryconsume({Tokens::TokenType::_sizeof})) {
+      tryconsume({Tokens::TokenType::open_paren}, {"Missing Token", "Expected '("});
+      Expression* e = parseExpr(nullptr);
+      expr->type = ExprType::size_of;
+      expr->returnType = new Type(Type::Builtins::ULONG);
+      expr->variant = e->returnType;
+      tryconsume({Tokens::TokenType::close_paren}, {"Missing Token", "Expected ')"});
+    } else if (tryconsume({.type = Tokens::TokenType::symbols, .value = "&"})) {
       Node::Expression* e = parseExpr(nullptr);
       expr->type = ExprType::reference;
       expr->variant = e;
@@ -665,8 +709,9 @@ namespace Parser {
       expr->variant = e;
       expr->returnType = e->returnType->pointsTo;
       return expr;
-    } else if (peek().type == Tokens::TokenType::symbols) {
-      string symbols = consume().value;
+    } else if (peek().type == Tokens::TokenType::symbols || peekIsAngles()) {
+      string symbols = peekIsAngles() ? anglesToSymbols().value : consume().value;
+
       Expression* e = parseExpr(nullptr);
       Operation* op = new Operation();
       bool found = false;
@@ -855,8 +900,8 @@ namespace Parser {
       expr = e;
     }
 
-    if (peek().type == Tokens::TokenType::symbols) {
-      string symbols = consume().value;
+    if (peek().type == Tokens::TokenType::symbols || peekIsAngles()) {
+      string symbols = peekIsAngles() ? anglesToSymbols().value : consume().value;
       Expression* r = parseExpr(nullptr);
       Operation* op = new Operation();
       bool found = false;

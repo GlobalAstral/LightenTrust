@@ -56,6 +56,8 @@ namespace Parser {
       bool literalIsType(Lits::Literal* lit, Node::Type* t);
       Node::Type* literalType(Lits::Literal* lit);
       vector<Node::NodeInstance*> nameIsFunction(string name, vector<Node::NodeInstance*>& funcs);
+      bool peekIsAngles();
+      Tokens::Token anglesToSymbols();
 
       vector<Node::Node> nodes;
       vector<Node::Variable*> vars;

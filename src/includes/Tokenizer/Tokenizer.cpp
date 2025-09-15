@@ -200,6 +200,8 @@ std::vector<Tokens::Token> Tokenizer::Tokenizer::tokenize() {
           tokens.push_back({Tokens::TokenType::loge, line, buffer});
         } else if (buffer == "template") {
           tokens.push_back({Tokens::TokenType::_template, line, buffer});
+        } else if (buffer == "sizeof") {
+          tokens.push_back({Tokens::TokenType::_sizeof, line, buffer});
         } else if (buffer == "asm") {
           while (tryconsume(' ') || tryconsume('\r'));
           while (tryconsume('\n')) {line++;};

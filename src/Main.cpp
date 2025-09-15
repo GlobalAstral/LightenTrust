@@ -58,11 +58,11 @@ int main(int argc, char** argv) {
 
   Preprocessor::Preprocessor preprocessor(tokens);
   vector<Tokens::Token> toks = preprocessor.preprocess();
-
+  
   cout << endl << "PREPROCESSED:" << endl;
   preprocessor.print(std::cout);
 
-  Parser::Parser parser{tokens};
+  Parser::Parser parser{toks};
   vector<Node::NodeInstance*> nodes = parser.parse();
 
   cout << endl << "NODES:" << endl;

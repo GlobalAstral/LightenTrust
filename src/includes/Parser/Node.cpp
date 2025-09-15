@@ -376,6 +376,9 @@ std::ostream &Node::operator<<(std::ostream &stream, const Expression &e) {
       os << "<" << custom->op->precedence << "> : ";
       custom->op->body->print(os);
     }
+    void operator()(Type* t) const {
+      os << "SIZEOF(" << *t << ")";
+    }
   };
   if (&e != nullptr && e.returnType != nullptr)
     stream << e.type << " -> " << *(e.returnType) << " : ";

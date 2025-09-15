@@ -119,13 +119,13 @@ namespace Node {
   };
 
   enum class ExprType {
-    literal, variable, func_call, reference, dereference, subscript, dot_notation, cast, interface_ref, custom, interface_call
+    literal, variable, func_call, reference, dereference, subscript, dot_notation, cast, interface_ref, custom, interface_call, size_of,
   };
 
   struct Expression {
     ExprType type;
     Type* returnType;
-    variant<Lits::Literal*, Variable*, FuncCall*, InterfaceCall*, NodeInstance*, Expression*, SubscriptExpr*, DotNotation*, CastExpr*, CustomExpr*> variant;
+    variant<Lits::Literal*, Variable*, FuncCall*, InterfaceCall*, NodeInstance*, Expression*, SubscriptExpr*, DotNotation*, CastExpr*, CustomExpr*, Type*> variant;
   };
 
   std::ostream& operator<<(std::ostream& stream, const Type& t);
