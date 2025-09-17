@@ -10,6 +10,7 @@
 #include <Tokenizer/Tokenizer.hpp>
 #include <Utils/VectorUtils.hpp>
 #include <limits>
+#include <Generator/Generator.hpp>
 
 namespace Parser {
   using namespace std;
@@ -22,6 +23,7 @@ namespace Parser {
 
       vector<Node::NodeInstance*> parse();
       void print(std::ostream& stream);
+      Generator::Generator* buildGenerator();
 
     protected:
       virtual Tokens::Token null() { return Tokens::nullToken(); };
@@ -38,6 +40,8 @@ namespace Parser {
       };
 
     private:
+      friend class Generator;
+
       void registerNodes(vector<Node::NodeInstance*>& output);
       Node::NodeInstance* parseSingle();
 
@@ -60,16 +64,16 @@ namespace Parser {
       Tokens::Token anglesToSymbols();
 
       vector<Node::Node> nodes;
-      vector<Node::Variable*> vars;
-      vector<Node::NodeInstance*> functions;
+      vector<Node::Variable*> vars; //!
+      vector<Node::NodeInstance*> functions; //!
       vector<Node::NodeInstance*> output;
       vector<string> namespaces;
       vector<Node::NodeInstance*> defers;
-      Map::Map<string, vector<Node::NodeInstance*>> aliases{};
-      vector<Node::Operation> operators;
-      vector<Node::Cast> casts;
-      vector<Node::Cast> autocasts;
-      Map::Map<string, Node::Type*> declaredTypes;
+      Map::Map<string, vector<Node::NodeInstance*>> aliases{}; //!
+      vector<Node::Operation> operators; //!
+      vector<Node::Cast> casts; //!
+      vector<Node::Cast> autocasts; //!
+      Map::Map<string, Node::Type*> declaredTypes; //!
       int scopeHierarchy = 0;
       Node::Type* funcReturnType = nullptr;
   };

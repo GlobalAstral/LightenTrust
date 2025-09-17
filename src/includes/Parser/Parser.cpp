@@ -20,6 +20,10 @@ namespace Parser {
     }
   }
 
+  Generator::Generator* Parser::buildGenerator() {
+    return new Generator::Generator(output, vars, functions, aliases, operators, casts, autocasts, declaredTypes);
+  }
+
   void Parser::registerNodes(vector<NodeInstance*>& output){
     Node::Node{NodeId::scope, [this](){return tryconsume({Tokens::TokenType::open_curly});}}
     .property("content", [this](Node::NodeInstance& instance){

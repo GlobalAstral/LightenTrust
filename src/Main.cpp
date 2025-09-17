@@ -9,6 +9,7 @@
 #include <Tokenizer/Tokenizer.hpp>
 #include <Preprocessor/Preprocessor.hpp>
 #include <Parser/Parser.hpp>
+#include <Generator/Generator.hpp>
 
 using std::cout;
 using std::endl;
@@ -68,6 +69,8 @@ int main(int argc, char** argv) {
   cout << endl << "NODES:" << endl;
 
   parser.print(std::cout);
+
+  Generator::Generator& generator = *parser.buildGenerator();
 
 	return 0;
 }
