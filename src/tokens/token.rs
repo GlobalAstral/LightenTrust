@@ -1,8 +1,7 @@
 use std::fmt::Display;
 
 
-#[derive(Debug)]
-pub enum Token {
+pub enum TokenKind {
   ParenthesisBlock(Vec<Token>),
   CurlyBlock(Vec<Token>),
   AngleBlock(Vec<Token>),
@@ -13,77 +12,82 @@ pub enum Token {
   Literal(String),
   Symbols(String)
 }
+pub struct Token {
+  pub kind: TokenKind,
+  pub line: usize
+}
 
 impl Display for Token {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match self {
-      Self::ParenthesisBlock(block) => {
+    match &self.kind {
+      TokenKind::ParenthesisBlock(block) => {
         let temp: Vec<String> = block.iter().map(|t| format!("{}", t)).collect();
         write!(f, "({})", temp.join(", "))
       },
-      Self::CurlyBlock(block) => {
+      TokenKind::CurlyBlock(block) => {
         let temp: Vec<String> = block.iter().map(|t| format!("{}", t)).collect();
         write!(f, "{{{}}}", temp.join(", "))
       },
-      Self::AngleBlock(block) => {
+      TokenKind::AngleBlock(block) => {
         let temp: Vec<String> = block.iter().map(|t| format!("{}", t)).collect();
         write!(f, "<{}>", temp.join(", "))
       },
-      Self::SquareBlock(block) => {
+      TokenKind::SquareBlock(block) => {
         let temp: Vec<String> = block.iter().map(|t| format!("{}", t)).collect();
         write!(f, "[{}]", temp.join(", "))
       },
-      Self::Semicolon => {
+      TokenKind::Semicolon => {
         write!(f, ";")
       },
-      Self::Dot => {
+      TokenKind::Dot => {
         write!(f, "DOT")
       },
-      Self::Comma => {
+      TokenKind::Comma => {
         write!(f, "COMMA")
       },
-      Self::Return => {
+      TokenKind::Return => {
         write!(f, "return")
       },
-      Self::Asm(s) => {
+      TokenKind::Asm(s) => {
         write!(f, "asm \"{}\"", s)
       },
-      Self::Type => {
+      TokenKind::Type => {
         write!(f, "type")
       },
-      Self::If => {
+      TokenKind::If => {
         write!(f, "if")
       },
-      Self::Else => {
+      TokenKind::Else => {
         write!(f, "else")
       },
-      Self::While => {
+      TokenKind::While => {
         write!(f, "while")
       },
-      Self::Do => {
+      TokenKind::Do => {
         write!(f, "do")
       },
-      Self::For => {
+      TokenKind::For => {
         write!(f, "for")
       },
-      Self::Namespace => {
+      TokenKind::Namespace => {
         write!(f, "namespace")
       },
-      Self::Fnc => {
+      TokenKind::Fnc => {
         write!(f, "fnc")
       },
-      Self::Inline => {
+      TokenKind::Inline => {
         write!(f, "inline")
       },
-      Self::Identifier(s) => {
+      TokenKind::Identifier(s) => {
         write!(f, "{}", s)
       },
-      Self::Literal(lit) => {
+      TokenKind::Literal(lit) => {
         write!(f, "{}", lit)
       },
-      Self::Symbols(s) => {
+      TokenKind::Symbols(s) => {
         write!(f, "{}", s)
       },
-    }
+    }?;
+    write!(f, "<{}>", self.line)
   }
 }

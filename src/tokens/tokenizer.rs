@@ -1,6 +1,6 @@
 use std::{iter::Peekable, process::exit};
 
-use crate::tokens::token::{Token};
+use crate::tokens::token::{Token, TokenKind};
 
 
 pub struct Tokenizer {
@@ -106,15 +106,15 @@ impl Tokenizer {
   }
 
   fn token_one(&mut self) -> Option<Token> {
-    if let Some(ch) = self.input.next() {
+    let kind = if let Some(ch) = self.input.next() {
       match ch {
-        '(' => Some(Token::ParenthesisBlock(self.tokenize_until(')'))),
-        '{' => Some(Token::CurlyBlock(self.tokenize_until('}'))),
-        '<' => Some(Token::AngleBlock(self.tokenize_until('>'))),
-        '[' => Some(Token::SquareBlock(self.tokenize_until(']'))),
-        ';' => Some(Token::Semicolon),
-        '.' => Some(Token::Dot),
-        ',' => Some(Token::Comma),
+        '(' => Some(TokenKind::ParenthesisBlock(self.tokenize_until(')'))),
+        '{' => Some(TokenKind::CurlyBlock(self.tokenize_until('}'))),
+        '<' => Some(TokenKind::AngleBlock(self.tokenize_until('>'))),
+        '[' => Some(TokenKind::SquareBlock(self.tokenize_until(']'))),
+        ';' => Some(TokenKind::Semicolon),
+        '.' => Some(TokenKind::Dot),
+        ',' => Some(TokenKind::Comma),
         '\'' => {
           if let Some(ch) = self.input.next() {
             let parsed = if ch == '\\' {
@@ -123,7 +123,7 @@ impl Tokenizer {
               ch
             };
             match self.input.next() {
-              Some('\'') => Some(Token::Literal(format!("'{}'", parsed))),
+              Some('\'') => Some(TokenKind::Literal(format!("'{}'", parsed))),
               _ => self.error("Expected closing single quote")
             }
           } else {
@@ -136,7 +136,7 @@ impl Tokenizer {
             if ch == '"' { self.input.next(); break; }
             buf.push(self.parse_escaped_char());
           }
-          Some(Token::Literal(format!("\"{}\"", buf)))
+          Some(TokenKind::Literal(format!("\"{}\"", buf)))
         },
         c => {
           if let Some(cha) = self.input.peek() && c == '0' && *cha == 'x' {
@@ -149,7 +149,7 @@ impl Tokenizer {
               }
               break;
             };
-            Some(Token::Literal(buf))
+            Some(TokenKind::Literal(buf))
           } else if c.is_alphabetic() {
             let mut buf: String = String::from(c);
             while let Some(ch) = self.input.next() {
@@ -160,24 +160,24 @@ impl Tokenizer {
               break;
             };
             match buf.as_str() {
-              "return" => Some(Token::Return),
+              "return" => Some(TokenKind::Return),
               "asm" => {
                 if let Some(ch) = self.input.peek() && *ch != '{' {
                   self.error("Expected '{' after 'asm'");
                 }
                 self.input.next();
-                Some(Token::Asm(self.get_until('}')))
+                Some(TokenKind::Asm(self.get_until('}')))
               },
-              "type" => Some(Token::Type),
-              "if" => Some(Token::If),
-              "else" => Some(Token::Else),
-              "while" => Some(Token::While),
-              "do" => Some(Token::Do),
-              "for" => Some(Token::For),
-              "namespace" => Some(Token::Namespace),
-              "fnc" => Some(Token::Fnc),
-              "inline" => Some(Token::Inline),
-              s => Some(Token::Identifier(s.to_string()))
+              "type" => Some(TokenKind::Type),
+              "if" => Some(TokenKind::If),
+              "else" => Some(TokenKind::Else),
+              "while" => Some(TokenKind::While),
+              "do" => Some(TokenKind::Do),
+              "for" => Some(TokenKind::For),
+              "namespace" => Some(TokenKind::Namespace),
+              "fnc" => Some(TokenKind::Fnc),
+              "inline" => Some(TokenKind::Inline),
+              s => Some(TokenKind::Identifier(s.to_string()))
             }
           } else if c.is_digit(10) {
             let mut buf: String = String::from(c);
@@ -188,7 +188,7 @@ impl Tokenizer {
               }
               break;
             };
-            Some(Token::Literal(buf))
+            Some(TokenKind::Literal(buf))
           } else if !c.is_whitespace() {
             let mut buf: String = String::from(c);
             while let Some(ch) = self.input.next() {
@@ -198,12 +198,17 @@ impl Tokenizer {
               }
               break;
             };
-            Some(Token::Symbols(buf))
+            Some(TokenKind::Symbols(buf))
           } else {
             None
           }
         }
       }
+    } else {
+      None
+    };
+    if let Some(kind) = kind {
+      Some(Token {kind: kind, line: self.line})
     } else {
       None
     }
