@@ -4,6 +4,7 @@ use crate::{constants::EXTENSION, tokens::tokenizer::Tokenizer};
 
 mod constants;
 mod tokens;
+mod parser;
 
 fn main() -> Result<(), Box<dyn Error>> {
   let args: Vec<String> = env::args().collect();
