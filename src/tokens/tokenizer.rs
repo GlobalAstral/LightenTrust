@@ -177,6 +177,9 @@ impl Tokenizer {
               "namespace" => Some(TokenKind::Namespace),
               "fnc" => Some(TokenKind::Fnc),
               "inline" => Some(TokenKind::Inline),
+              "struct" => Some(TokenKind::Struct),
+              "union" => Some(TokenKind::Union),
+              "enum" => Some(TokenKind::Enum),
               s => Some(TokenKind::Identifier(s.to_string()))
             }
           } else if c.is_digit(10) {
