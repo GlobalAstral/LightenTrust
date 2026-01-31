@@ -50,7 +50,7 @@ impl Parser {
         let temp: Vec<Token> = block[2..].iter().map(|e| e.clone()).collect();
         let this: *mut Parser = self;
         let r#type = self.base.switch(temp, |base| {
-          unsafe { (*this).parse_type().unwrap_or_else(|| base.error("Expected Type")) }
+          unsafe { (*this).parse_type() }.unwrap_or_else(|| base.error("Expected Type"))
         });
         Some(Type::Array { size, r#type: Box::new(r#type) })
       } else {

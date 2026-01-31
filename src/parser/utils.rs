@@ -1,27 +1,13 @@
 use std::{fmt::Display, process::exit};
 
-pub trait Throws<T> {
-  fn or_throw(self, f: impl FnOnce()) -> T;
-}
-
-impl<T> Throws<T> for Option<T> {
-  fn or_throw(self, f: impl FnOnce()) -> T {
-    if self.is_some() {
-      return self.unwrap()
-    }
-    f();
-    exit(1);
-  }
-}
-
-pub struct Processor<T> where T: Clone + Display {
+pub struct Processor<T> where T: Clone + Display + Default {
   input: Vec<T>,
   peek: usize,
   equals_criteria: Box<dyn Fn(&T, &T) -> bool>,
   get_line: Box<dyn Fn(&T) -> usize>
 }
 
-impl<T> Processor<T> where T: Clone + Display {
+impl<T> Processor<T> where T: Clone + Display + Default {
   pub fn new(i: Vec<T>, criteria: Box<dyn Fn(&T, &T) -> bool>, get_line: Box<dyn Fn(&T) -> usize>) -> Processor<T> {
     Self { input: i, peek: 0, equals_criteria: criteria, get_line }
   }
@@ -36,10 +22,7 @@ impl<T> Processor<T> where T: Clone + Display {
   }
 
   pub fn peek(&self) -> T {
-    if self.has_peek() {
-      return self.input.get(self.peek).cloned().unwrap()
-    }
-    self.error("Peek has no value");
+    self.input.get(self.peek).cloned().unwrap_or_default()
   }
 
   pub fn peek_equal(&self, i: T) -> bool {
@@ -50,10 +33,7 @@ impl<T> Processor<T> where T: Clone + Display {
   }
 
   pub fn peek_back(&self) -> T {
-    if self.peek.saturating_sub(1) < self.input.len() {
-      return self.input.get(self.peek.saturating_sub(1)).cloned().unwrap();
-    }
-    self.error("Peek has no value");
+    self.input.get(self.peek.saturating_sub(1)).cloned().unwrap_or_default()
   }
 
   pub fn consume(&mut self) -> T {
@@ -62,7 +42,7 @@ impl<T> Processor<T> where T: Clone + Display {
       self.peek += 1;
       return temp
     }
-    self.error("Peek has no value");
+    T::default()
   }
   
   pub fn tryconsume(&mut self, i: T) -> bool {
