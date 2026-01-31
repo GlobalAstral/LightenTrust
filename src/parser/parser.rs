@@ -1,7 +1,7 @@
 
 use std::collections::HashMap;
 
-use crate::{parser::{nodes::{Fnc, Node}, types::{Type, Variable}, utils::Processor}, tokens::token::{Token, TokenKind}};
+use crate::{parser::{expressions::Expression, nodes::{Fnc, Node}, types::{Type, Variable}, utils::Processor}, tokens::token::{Token, TokenKind}};
 
 static mut CURRENT_ID: u64 = 0;
 
@@ -128,6 +128,16 @@ impl Parser {
       Some(Type::FunctionPointer { return_type: Box::new(return_type), arguments: types })
     } else {
       None
+    }
+  }
+
+  fn parse_expr(&mut self) -> Expression {
+    if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
+      let block = self.base.consume().as_paren_block().unwrap();
+      let this: *mut Parser = self;
+      self.base.switch(block, |_| unsafe { (*this).parse_expr() })
+    } else {
+      self.base.error("Expected Expression");
     }
   }
 

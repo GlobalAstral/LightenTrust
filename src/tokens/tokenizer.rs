@@ -181,6 +181,7 @@ impl Tokenizer {
               "struct" => Some(TokenKind::Struct),
               "union" => Some(TokenKind::Union),
               "enum" => Some(TokenKind::Enum),
+              "to" => Some(TokenKind::To),
               s => Some(TokenKind::Identifier(s.to_string()))
             }
           } else if c.is_digit(10) {
