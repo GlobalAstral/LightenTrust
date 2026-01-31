@@ -2,46 +2,48 @@ use std::fmt::Display;
 
 use crate::parser::literals::Literal;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Default)]
 pub enum TokenKind {
   ParenthesisBlock(Vec<Token>),
   CurlyBlock(Vec<Token>),
   AngleBlock(Vec<Token>),
   SquareBlock(Vec<Token>),
-  Semicolon, Dot, Comma,
+  Semicolon, Dot, Comma, Ampersand,
   Return, Asm(String), Type, If, Else, While, Do, For, Namespace, Fnc, Inline, Struct, Union, Enum,
   Identifier(String),
   Literal(String),
-  Symbols(String)
+  Symbols(String),
+  #[default]
+  Invalid
 }
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Default)]
 pub struct Token {
   pub kind: TokenKind,
   pub line: usize
 }
 
 impl Token {
-  pub fn as_square_block(&self) -> Option<&Vec<Token>> {
+  pub fn as_square_block(&self) -> Option<Vec<Token>> {
     match &self.kind {
-      TokenKind::SquareBlock(s) => Some(s),
+      TokenKind::SquareBlock(s) => Some(s.clone()),
       _ => None
     }
   }
-  pub fn as_curly_block(&self) -> Option<&Vec<Token>> {
+  pub fn as_curly_block(&self) -> Option<Vec<Token>> {
     match &self.kind {
-      TokenKind::CurlyBlock(s) => Some(s),
+      TokenKind::CurlyBlock(s) => Some(s.clone()),
       _ => None
     }
   }
-  pub fn as_paren_block(&self) -> Option<&Vec<Token>> {
+  pub fn as_paren_block(&self) -> Option<Vec<Token>> {
     match &self.kind {
-      TokenKind::ParenthesisBlock(s) => Some(s),
+      TokenKind::ParenthesisBlock(s) => Some(s.clone()),
       _ => None
     }
   }
-  pub fn as_angle_block(&self) -> Option<&Vec<Token>> {
+  pub fn as_angle_block(&self) -> Option<Vec<Token>> {
     match &self.kind {
-      TokenKind::AngleBlock(s) => Some(s),
+      TokenKind::AngleBlock(s) => Some(s.clone()),
       _ => None
     }
   }
@@ -116,6 +118,9 @@ impl Display for Token {
       TokenKind::Comma => {
         write!(f, "COMMA")
       },
+      TokenKind::Ampersand => {
+        write!(f, "AMPERSAND")
+      }
       TokenKind::Return => {
         write!(f, "return")
       },
@@ -167,6 +172,9 @@ impl Display for Token {
       TokenKind::Symbols(s) => {
         write!(f, "{}", s)
       },
+      TokenKind::Invalid => {
+        write!(f, "NULL")
+      }
     }?;
     write!(f, "<{}>", self.line)
   }

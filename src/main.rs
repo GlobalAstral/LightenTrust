@@ -1,6 +1,6 @@
 use std::{env, error::Error, fs, path::PathBuf};
 
-use crate::{constants::EXTENSION, tokens::tokenizer::Tokenizer};
+use crate::{constants::EXTENSION, parser::parser::Parser, tokens::tokenizer::Tokenizer};
 
 mod constants;
 mod tokens;
@@ -27,9 +27,15 @@ fn main() -> Result<(), Box<dyn Error>> {
   let content = fs::read_to_string(input_file)?;
   let mut tokenizer: Tokenizer = Tokenizer::new(&content);
   let tokens = tokenizer.tokenize();
+  println!("TOKENS");
   tokens.iter().for_each(|t| {
     println!("{}", t)
   });
+
+  let mut parser: Parser = Parser::new(tokens.clone());
+
+  println!("\nPARSED");
+  parser.parse();
 
   Ok(())
 }

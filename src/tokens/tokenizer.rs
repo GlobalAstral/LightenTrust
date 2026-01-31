@@ -115,6 +115,7 @@ impl Tokenizer {
         ';' => Some(TokenKind::Semicolon),
         '.' => Some(TokenKind::Dot),
         ',' => Some(TokenKind::Comma),
+        '&' => Some(TokenKind::Ampersand),
         '\'' => {
           if let Some(ch) = self.input.next() {
             let parsed = if ch == '\\' {
@@ -142,9 +143,9 @@ impl Tokenizer {
           if let Some(cha) = self.input.peek() && c == '0' && *cha == 'x' {
             let mut buf: String = String::from(c);
             buf.push(self.input.next().unwrap());
-            while let Some(ch) = self.input.next() {
+            while let Some(ch) = self.input.peek() {
               if ch.is_digit(16) {
-                buf.push(ch);
+                buf.push(self.input.next().unwrap());
                 continue;
               }
               break;
@@ -152,9 +153,9 @@ impl Tokenizer {
             Some(TokenKind::Literal(buf))
           } else if c.is_alphabetic() {
             let mut buf: String = String::from(c);
-            while let Some(ch) = self.input.next() {
+            while let Some(ch) = self.input.peek() {
               if ch.is_alphanumeric() {
-                buf.push(ch);
+                buf.push(self.input.next().unwrap());
                 continue;
               }
               break;
@@ -184,9 +185,9 @@ impl Tokenizer {
             }
           } else if c.is_digit(10) {
             let mut buf: String = String::from(c);
-            while let Some(ch) = self.input.next() {
-              if ch.is_digit(10) || ch == '.' {
-                buf.push(ch);
+            while let Some(ch) = self.input.peek() {
+              if ch.is_digit(10) || *ch == '.' {
+                buf.push(self.input.next().unwrap());
                 continue;
               }
               break;
@@ -194,9 +195,9 @@ impl Tokenizer {
             Some(TokenKind::Literal(buf))
           } else if !c.is_whitespace() {
             let mut buf: String = String::from(c);
-            while let Some(ch) = self.input.next() {
+            while let Some(ch) = self.input.peek() {
               if !ch.is_whitespace() {
-                buf.push(ch);
+                buf.push(self.input.next().unwrap());
                 continue;
               }
               break;
