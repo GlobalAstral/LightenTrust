@@ -34,6 +34,10 @@ pub enum Type {
   },
   Memory {
     size: u64
+  },
+  FunctionPointer {
+    return_type: Box<Type>,
+    arguments: Vec<Type>
   }
 }
 
@@ -46,6 +50,7 @@ impl Display for Type {
       Self::Pointer { r#type } => write!(f, "&{}", r#type),
       Self::Struct { fields } => write!(f, "struct {{ {} }}", fields.iter().map(|v| format!("{}", v)).collect::<Vec<String>>().join("; ")),
       Self::Union { fields } => write!(f, "union {{ {} }}", fields.iter().map(|v| format!("{}", v)).collect::<Vec<String>>().join("; ")),
+      Self::FunctionPointer { return_type, arguments } => write!(f, "fnc({}) {}", arguments.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", "), return_type)
     }
   }
 }

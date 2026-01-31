@@ -93,6 +93,28 @@ impl Parser {
       } else {
         self.base.error("Expected Fields for struct")
       }
+    } else if self.base.tryconsume(Token { kind: TokenKind::Fnc, ..Default::default() }) {
+      if !matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
+        self.base.error("Expected arguments of function pointer type");
+      };
+      let block = self.base.consume().as_paren_block().unwrap();
+      let return_type = self.parse_type()
+        .unwrap_or_else(|| self.base.error("Expected return type of function pointer type"));
+      let mut types: Vec<Type> = Vec::new();
+      if !block.is_empty() {
+        let this: *mut Parser = self;
+        self.base.switch(block, |base| {
+          let mut count: usize = 0;
+          while base.has_peek() {
+            if count > 0 {
+              base.require(Token { kind: TokenKind::Comma, ..Default::default() });
+            };
+            types.push(unsafe { (*this).parse_type() }.unwrap_or_else(|| base.error("Expected argument type")));
+            count += 1;
+          }
+        });
+      }
+      Some(Type::FunctionPointer { return_type: Box::new(return_type), arguments: types })
     } else {
       None
     }
