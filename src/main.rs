@@ -35,7 +35,10 @@ fn main() -> Result<(), Box<dyn Error>> {
   let mut parser: Parser = Parser::new(tokens.clone());
 
   println!("\nPARSED");
-  parser.parse();
+  let nodes = parser.parse();
+  nodes.iter().for_each(|n| {
+    println!("{}", n);
+  });
 
   Ok(())
 }

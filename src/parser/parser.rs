@@ -1,7 +1,7 @@
 
 use std::collections::HashMap;
 
-use crate::{parser::{types::{Type, Variable}, utils::Processor}, tokens::token::{Token, TokenKind}};
+use crate::{parser::{nodes::{Fnc, Node}, types::{Type, Variable}, utils::Processor}, tokens::token::{Token, TokenKind}};
 
 static mut CURRENT_ID: u64 = 0;
 
@@ -15,12 +15,23 @@ fn generate_id() -> u64 {
 
 pub struct Parser {
   base: Processor<Token>,
-  types: HashMap<String, Type>
+  types: HashMap<String, Type>,
+  locals: Vec<Variable>,
+  globals: Vec<Variable>,
+  scope_depth: usize,
+  functions: Vec<Fnc>,
 }
 
 impl Parser {
   pub fn new(i: Vec<Token>) -> Self {
-    Self { base: Processor::new(i, Box::new(|a, b| a.kind == b.kind), Box::new(|s| s.line)), types: HashMap::new() }
+    Self {
+      base: Processor::new(i, Box::new(|a, b| a.kind == b.kind), Box::new(|s| s.line)), 
+      types: HashMap::new(), 
+      globals: Vec::new(), 
+      locals: Vec::new(), 
+      scope_depth: 0, 
+      functions: Vec::new()
+    }
   }
 
   fn parse_var(&mut self) -> Variable {
@@ -120,9 +131,66 @@ impl Parser {
     }
   }
 
-  pub fn parse(&mut self) {
-    while self.base.has_peek() {
-
+  fn parse_one(&mut self) -> Node {
+    if matches!(self.base.peek().kind, TokenKind::CurlyBlock(_)) {
+      let block = self.base.consume().as_curly_block().unwrap();
+      self.scope_depth += 1;
+      let this: *mut Parser = self;
+      let vec = if !block.is_empty() { self.base.switch(block, |_| unsafe { (*this).parse() } ) } else { Vec::new() };
+      self.scope_depth -= 1;
+      self.locals.clear();
+      Node::Scope(vec)
+    } else if self.base.tryconsume(Token { kind: TokenKind::Fnc, ..Default::default() }) {
+      let name = self.base.consume().as_identifier()
+        .unwrap_or_else(|| self.base.error("Expected Identifier for function name")).to_string();
+      let arguments: Vec<Variable> = if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
+        let block = self.base.consume().as_paren_block().unwrap();
+        let this: *mut Parser = self;
+        self.base.switch(block, |base| {
+          let mut count: usize = 0;
+          let mut temp: Vec<Variable> = Vec::new();
+          while base.has_peek() {
+            if count > 0 {
+              base.require(Token { kind: TokenKind::Comma, ..Default::default() });
+            }
+            temp.push( unsafe { (*this).parse_var() } );
+            count += 1;
+          }
+          temp
+        })
+      } else {
+        Vec::new()
+      };
+      let return_type = self.parse_type()
+        .unwrap_or_else(|| self.base.error("Expected function return type"));
+      arguments.iter().for_each(|arg| {
+        self.locals.push(arg.clone());
+      });
+      let body = self.parse_one();
+      if !matches!(body, Node::Scope(_)) {
+        self.base.error("Scope for function body is mandatory")
+      };
+      let fnc = Fnc {name: name.clone(), return_type: Box::new(return_type.clone()), arguments: arguments.clone(), body: Box::new(body.clone()), id: generate_id()};
+      if self.functions.iter().find(|a| {
+        a.name == name && 
+        a.arguments.len() == arguments.len() && 
+        a.arguments.iter().zip(&arguments).all(|(x, y)| x.r#type == y.r#type) &&
+        *a.return_type == return_type
+      }).is_some() {
+        self.base.error(&format!("Function {} already exists", fnc))
+      };
+      self.functions.push(fnc.clone());
+      Node::FncDecl(fnc)
+    } else {
+      self.base.error("Invalid Statement");
     }
+  }
+
+  pub fn parse(&mut self) -> Vec<Node> {
+    let mut ret: Vec<Node> = Vec::new();
+    while self.base.has_peek() {
+      ret.push(self.parse_one());
+    }
+    return ret;
   }
 }
