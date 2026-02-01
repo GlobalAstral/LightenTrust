@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use crate::parser::types::{MemoryKind, Type};
+use crate::{constants::get_configs, parser::types::{MemoryKind, Type}};
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum Literal {
@@ -32,10 +32,10 @@ impl Literal {
 
   pub fn get_type(&self) -> Type {
     match self {
-      Self::Integer(_) => Type::Memory { size: 4, kind: MemoryKind::Integer },
-      Self::Float(_) => Type::Memory { size: 4, kind: MemoryKind::Float },
-      Self::String(s) => Type::Memory { size: s.len() as u64, kind: MemoryKind::Integer },
-      Self::Char(_) => Type::Memory { size: 1, kind: MemoryKind::Integer }
+      Self::Integer(_) => Type::Memory { size: get_configs().intl_size, kind: MemoryKind::Integer },
+      Self::Float(_) => Type::Memory { size: get_configs().floatl_size, kind: MemoryKind::Float },
+      Self::String(s) => Type::Memory { size: (s.len() as u64) * get_configs().charl_size, kind: MemoryKind::Integer },
+      Self::Char(_) => Type::Memory { size: get_configs().charl_size, kind: MemoryKind::Integer }
     }
   }
 

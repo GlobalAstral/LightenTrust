@@ -1,6 +1,8 @@
-use std::{env, error::Error, fs, path::PathBuf};
+use std::{env, error::Error, fs::{self, OpenOptions}, io::Write, path::PathBuf};
 
-use crate::{constants::EXTENSION, parser::parser::Parser, tokens::tokenizer::Tokenizer};
+use toml_edit::Document;
+
+use crate::{constants::{CONFIGS, Configs, DEFAULT_CONFIG, EXTENSION}, parser::parser::Parser, tokens::tokenizer::Tokenizer};
 
 mod constants;
 mod tokens;
@@ -23,6 +25,35 @@ fn main() -> Result<(), Box<dyn Error>> {
   } else {
     input_file.with_extension("exe")
   };
+
+  let config_file: PathBuf = 
+    if let Some((index, _)) = args.iter().enumerate().find(|(_, arg)| **arg == "-cfg") {
+      let temp: Result<&&str, Box<dyn Error>> = args.get(index + 1).ok_or_else(|| "Invalid CLI arguments".into());
+      let mut temp = PathBuf::from(temp?);
+      temp.set_extension("toml");
+      temp
+    } else {
+      PathBuf::from("./config.toml")
+    };
+  
+  if !config_file.exists() {
+    let mut f = OpenOptions::new()
+      .create_new(true)
+      .write(true)
+      .open(&config_file)?;
+    write!(f, "{}", DEFAULT_CONFIG)?;
+  }
+
+  {
+    let doc: Document<String> = fs::read_to_string(config_file)?.parse()?;
+    let mut writer = CONFIGS.write()?;
+    *writer = Configs {
+      ptr_size: doc.get("ptr_size").unwrap().as_integer().unwrap_or(8) as u64, 
+      intl_size: doc.get("int_lit").unwrap().as_integer().unwrap_or(8) as u64, 
+      floatl_size: doc.get("float_lit").unwrap().as_integer().unwrap_or(8) as u64,
+      charl_size: doc.get("char_lit").unwrap().as_integer().unwrap_or(8) as u64, 
+    };
+  }
 
   let content = fs::read_to_string(input_file)?;
   let mut tokenizer: Tokenizer = Tokenizer::new(&content);
