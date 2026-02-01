@@ -1,5 +1,7 @@
 use std::error::Error;
 
+use crate::parser::types::Type;
+
 
 pub enum Literal {
   Integer(u64),
@@ -25,6 +27,15 @@ impl Literal {
       Ok(Literal::Integer(num))
     } else {
       Err(format!("Invalid literal \"{}\"", s).into())
+    }
+  }
+
+  pub fn get_type(&self) -> Type {
+    match self {
+      Self::Integer(_) => Type::Memory { size: 8 },
+      Self::Float(_) => Type::Memory { size: 8 },
+      Self::String(s) => Type::Memory { size: s.len() as u64 },
+      Self::Char(_) => Type::Memory { size: 1 }
     }
   }
 

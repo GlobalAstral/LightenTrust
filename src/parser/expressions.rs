@@ -31,6 +31,6 @@ pub enum ExprKind {
 }
 
 pub struct Expression {
-  kind: ExprKind,
-  return_type: Type,
+  pub kind: ExprKind,
+  pub return_type: Type,
 }
