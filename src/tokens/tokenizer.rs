@@ -105,12 +105,29 @@ impl Tokenizer {
     }
   }
 
+  fn is_char_present(&mut self, c: char) -> bool {
+    let mut passed: usize = 0;
+    let mut exists: bool = false;
+    while let Some(ch) = self.input.peek() {
+      if *ch == c {
+        exists = true;
+        break;
+      }
+      self.input.next();
+      passed += 1;
+    };
+    for _ in 0..passed {
+      self.input.next_back();
+    }
+    exists
+  }
+
   fn token_one(&mut self) -> Option<Token> {
     let kind = if let Some(ch) = self.input.next() {
       match ch {
         '(' => Some(TokenKind::ParenthesisBlock(self.tokenize_until(')'))),
         '{' => Some(TokenKind::CurlyBlock(self.tokenize_until('}'))),
-        '<' => Some(TokenKind::AngleBlock(self.tokenize_until('>'))), //FIXME ANGLE BLOCK SHOULD NOT FORCE ITS CLOSURE
+        '<' if self.is_char_present('>') => Some(TokenKind::AngleBlock(self.tokenize_until('>'))),
         '[' => Some(TokenKind::SquareBlock(self.tokenize_until(']'))),
         ';' => Some(TokenKind::Semicolon),
         '.' => Some(TokenKind::Dot),
