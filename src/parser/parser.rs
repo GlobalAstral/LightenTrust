@@ -1,7 +1,7 @@
 
 use std::collections::HashMap;
 
-use crate::{parser::{expressions::Expression, nodes::{Fnc, Node}, types::{Type, Variable}, utils::Processor}, tokens::token::{Token, TokenKind}};
+use crate::{parser::{expressions::{ExprKind, Expression}, nodes::{Fnc, Node}, types::{Type, Variable}, utils::Processor}, tokens::token::{Token, TokenKind}};
 
 static mut CURRENT_ID: u64 = 0;
 
@@ -50,68 +50,90 @@ impl Parser {
   fn parse_type(&mut self) -> Option<Type> {
     if self.base.tryconsume(Token { kind: TokenKind::Ampersand, ..Default::default() }) {
       Some(Type::Pointer { r#type: Box::new(self.parse_type().unwrap_or_else(|| self.base.error("Expected Type"))) })
+
     } else if matches!(self.base.peek().kind, TokenKind::SquareBlock(_)) {
       let block = self.base.consume().as_square_block().unwrap();
+      
       if block.len() == 1 {
-        let size = block[0].as_literal().and_then(|l| l.as_integer()).unwrap_or_else(|| self.base.error("Expected Integer Literal"));
+        let size = block[0].as_literal().and_then(|l| l.as_integer())
+          .unwrap_or_else(|| self.base.error("Expected Integer Literal"));
         Some(Type::Memory { size })
+      
       } else if block.len() > 2 {
-        let size = block[0].as_literal().and_then(|l| l.as_integer()).unwrap_or_else(|| self.base.error("Expected Integer Literal"));
-        if block[1].kind != TokenKind::Semicolon { self.base.error("Expected Semicolon for Array type") };
+        let size = block[0].as_literal().and_then(|l| l.as_integer())
+          .unwrap_or_else(|| self.base.error("Expected Integer Literal"));
+        
+        if block[1].kind != TokenKind::Semicolon {
+          self.base.error("Expected Semicolon for Array type")
+        };
+
         let temp: Vec<Token> = block[2..].iter().map(|e| e.clone()).collect();
         let this: *mut Parser = self;
         let r#type = self.base.switch(temp, |base| {
           unsafe { (*this).parse_type() }.unwrap_or_else(|| base.error("Expected Type"))
         });
         Some(Type::Array { size, r#type: Box::new(r#type) })
+      
       } else {
         self.base.error("Only array or memory type can be described with []")
       }
+    
     } else if matches!(self.base.peek().kind, TokenKind::Identifier(_)) {
       let id = self.base.consume().as_identifier().unwrap().to_string();
+      
       if !self.types.contains_key(&id) {
         self.base.error(&format!("Type {} does not exist", id));
       };
+      
       let r#type = self.types.get(&id).cloned().unwrap();
       Some(Type::Alias { name: id, is: Box::new(r#type) })
+    
     } else if self.base.tryconsume(Token { kind: TokenKind::Struct, ..Default::default() }) {
       if matches!(self.base.peek().kind, TokenKind::CurlyBlock(_)) {
         let block = self.base.consume().as_curly_block().unwrap();
         let mut vars: Vec<Variable> = Vec::new();
         let this: *mut Parser = self;
+        
         self.base.switch(block, |base| {
           while base.has_peek() {
             vars.push(unsafe { (*this).parse_var() });
             base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
           }
         });
+
         Some(Type::Struct { fields: vars })
       } else {
         self.base.error("Expected Fields for struct")
       }
+    
     } else if self.base.tryconsume(Token { kind: TokenKind::Union, ..Default::default() }) {
       if matches!(self.base.peek().kind, TokenKind::CurlyBlock(_)) {
         let block = self.base.consume().as_curly_block().unwrap();
         let mut vars: Vec<Variable> = Vec::new();
         let this: *mut Parser = self;
+        
         self.base.switch(block, |base| {
           while base.has_peek() {
             vars.push(unsafe { (*this).parse_var() });
             base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
           }
         });
+        
         Some(Type::Union { fields: vars })
       } else {
         self.base.error("Expected Fields for struct")
       }
+
     } else if self.base.tryconsume(Token { kind: TokenKind::Fnc, ..Default::default() }) {
       if !matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
         self.base.error("Expected arguments of function pointer type");
       };
+      
       let block = self.base.consume().as_paren_block().unwrap();
       let return_type = self.parse_type()
         .unwrap_or_else(|| self.base.error("Expected return type of function pointer type"));
       let mut types: Vec<Type> = Vec::new();
+      
       if !block.is_empty() {
         let this: *mut Parser = self;
         self.base.switch(block, |base| {
@@ -136,6 +158,23 @@ impl Parser {
       let block = self.base.consume().as_paren_block().unwrap();
       let this: *mut Parser = self;
       self.base.switch(block, |_| unsafe { (*this).parse_expr() })
+    
+    } else if matches!(self.base.peek().kind, TokenKind::Identifier(_)) {
+      let name = self.base.consume().as_identifier().unwrap().to_string();
+
+      if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
+        unimplemented!("FUNCTION CALLS ARE NOT YET IMPLEMENTED!")
+        
+      } else {
+        let var = 
+          if let Some(var) = self.globals.iter().find(|v| v.name == name) {
+            var
+          } else {
+            self.locals.iter().find(|v| v.name == name)
+              .unwrap_or_else(|| self.base.error(&format!("Variable {} does not exist", name)))
+          };
+        Expression { kind: ExprKind::Variable(var.id), return_type: var.r#type.clone() }
+      }
     } else {
       self.base.error("Expected Expression");
     }
@@ -145,20 +184,24 @@ impl Parser {
     if matches!(self.base.peek().kind, TokenKind::CurlyBlock(_)) {
       let block = self.base.consume().as_curly_block().unwrap();
       self.scope_depth += 1;
+      let before = self.locals.len();
       let this: *mut Parser = self;
       let vec = if !block.is_empty() { self.base.switch(block, |_| unsafe { (*this).parse() } ) } else { Vec::new() };
       self.scope_depth -= 1;
-      self.locals.clear();
+      self.locals.drain(before..);
       Node::Scope(vec)
+    
     } else if self.base.tryconsume(Token { kind: TokenKind::Fnc, ..Default::default() }) {
       let name = self.base.consume().as_identifier()
         .unwrap_or_else(|| self.base.error("Expected Identifier for function name")).to_string();
       let arguments: Vec<Variable> = if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
         let block = self.base.consume().as_paren_block().unwrap();
         let this: *mut Parser = self;
+        
         self.base.switch(block, |base| {
           let mut count: usize = 0;
           let mut temp: Vec<Variable> = Vec::new();
+          
           while base.has_peek() {
             if count > 0 {
               base.require(Token { kind: TokenKind::Comma, ..Default::default() });
@@ -166,20 +209,26 @@ impl Parser {
             temp.push( unsafe { (*this).parse_var() } );
             count += 1;
           }
+          
           temp
         })
+      
       } else {
         Vec::new()
       };
+      
       let return_type = self.parse_type()
         .unwrap_or_else(|| self.base.error("Expected function return type"));
+
       arguments.iter().for_each(|arg| {
         self.locals.push(arg.clone());
       });
+
       let body = self.parse_one();
       if !matches!(body, Node::Scope(_)) {
         self.base.error("Scope for function body is mandatory")
       };
+      
       let fnc = Fnc {name: name.clone(), return_type: Box::new(return_type.clone()), arguments: arguments.clone(), body: Box::new(body.clone()), id: generate_id()};
       if self.functions.iter().find(|a| {
         a.name == name && 
@@ -189,8 +238,10 @@ impl Parser {
       }).is_some() {
         self.base.error(&format!("Function {} already exists", fnc))
       };
+      
       self.functions.push(fnc.clone());
       Node::FncDecl(fnc)
+    
     } else {
       self.base.error("Invalid Statement");
     }
