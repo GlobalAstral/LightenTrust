@@ -1,5 +1,6 @@
 use crate::parser::{literals::Literal, types::Type};
 
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum ExprKind {
   Literal(Literal),
   Variable(u64),
@@ -30,6 +31,7 @@ pub enum ExprKind {
   //TODO ADD CUSTOM OPERANDS LATER!
 }
 
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct Expression {
   pub kind: ExprKind,
   pub return_type: Type,

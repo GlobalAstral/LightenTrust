@@ -8,7 +8,7 @@ pub enum TokenKind {
   CurlyBlock(Vec<Token>),
   AngleBlock(Vec<Token>),
   SquareBlock(Vec<Token>),
-  Semicolon, Dot, Comma, Ampersand,
+  Semicolon, Dot, Comma, Ampersand, Dollar,
   Return, Asm(String), Type, If, Else, While, Do, For, Namespace, Fnc, Inline, Struct, Union, Enum, To,
   Identifier(String),
   Literal(String),
@@ -120,7 +120,10 @@ impl Display for Token {
       },
       TokenKind::Ampersand => {
         write!(f, "AMPERSAND")
-      }
+      },
+      TokenKind::Dollar => {
+        write!(f, "DOLLAR")
+      },
       TokenKind::Return => {
         write!(f, "return")
       },

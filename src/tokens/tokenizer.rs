@@ -110,12 +110,13 @@ impl Tokenizer {
       match ch {
         '(' => Some(TokenKind::ParenthesisBlock(self.tokenize_until(')'))),
         '{' => Some(TokenKind::CurlyBlock(self.tokenize_until('}'))),
-        '<' => Some(TokenKind::AngleBlock(self.tokenize_until('>'))),
+        '<' => Some(TokenKind::AngleBlock(self.tokenize_until('>'))), //FIXME ANGLE BLOCK SHOULD NOT FORCE ITS CLOSURE
         '[' => Some(TokenKind::SquareBlock(self.tokenize_until(']'))),
         ';' => Some(TokenKind::Semicolon),
         '.' => Some(TokenKind::Dot),
         ',' => Some(TokenKind::Comma),
         '&' => Some(TokenKind::Ampersand),
+        '$' => Some(TokenKind::Dollar),
         '\'' => {
           if let Some(ch) = self.input.next() {
             let parsed = if ch == '\\' {
@@ -230,6 +231,7 @@ impl Tokenizer {
         self.input.next();
         continue;
       }
+
       if let Some(token) = self.token_one() {
         self.output.push(token);
       } else {

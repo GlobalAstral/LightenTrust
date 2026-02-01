@@ -159,12 +159,55 @@ impl Parser {
       let this: *mut Parser = self;
       self.base.switch(block, |_| unsafe { (*this).parse_expr() })
     
+    } else if matches!(self.base.peek().kind, TokenKind::Literal(_)) {
+      let lit = self.base.consume().as_literal().unwrap();
+      println!("{:?}", lit);
+      Expression { return_type: lit.get_type(), kind: ExprKind::Literal(lit)}
     } else if matches!(self.base.peek().kind, TokenKind::Identifier(_)) {
       let name = self.base.consume().as_identifier().unwrap().to_string();
 
       if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
-        unimplemented!("FUNCTION CALLS ARE NOT YET IMPLEMENTED!")
+        let block = self.base.consume().as_paren_block().unwrap();
+        let this: *mut Parser = self;
         
+        let args =  self.base.switch(block, |base| {
+          let mut args: Vec<Expression> = Vec::new();
+          let mut count: usize = 0;
+          while base.has_peek() {
+            if count > 0 {
+              base.require(Token { kind: TokenKind::Comma, ..Default::default() });
+            }
+            args.push( unsafe { (*this).parse_expr() } );
+            count += 1;
+          }
+          args
+        });
+
+        let found_funcs: Vec<Fnc> = self.functions.iter()
+        .filter(|f| {
+          f.name == name &&
+          f.arguments.len() == args.len() &&
+          f.arguments.iter().zip(&args).all(|(x, y)| x.r#type == y.return_type)
+        })
+        .cloned()
+        .collect();
+        
+        if found_funcs.is_empty() {
+          self.base.error(&format!("Function {} does not exist with such arguments", name))
+        }
+        let function = if found_funcs.len() > 1 {
+          self.base.require(Token { kind: TokenKind::Dollar, ..Default::default() });
+          if let Some(t) = self.parse_type() {
+            found_funcs.iter().find(|f| *f.return_type == t)
+              .unwrap_or_else(|| self.base.error(&format!("Function {} does not exist with such arguments and specified type", name)))
+          } else {
+            self.base.error("Expected Type specifier");
+          }
+        } else {
+          &found_funcs[0]
+        };
+        Expression { kind: ExprKind::FncCall { id: function.id, args }, return_type: *function.return_type.clone() }
+      
       } else {
         let var = 
           if let Some(var) = self.globals.iter().find(|v| v.name == name) {
@@ -243,7 +286,7 @@ impl Parser {
       Node::FncDecl(fnc)
     
     } else {
-      self.base.error("Invalid Statement");
+      Node::Expr(self.parse_expr())
     }
   }
 

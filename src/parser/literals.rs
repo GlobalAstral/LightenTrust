@@ -2,7 +2,7 @@ use std::error::Error;
 
 use crate::parser::types::Type;
 
-
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum Literal {
   Integer(u64),
   Float(f64),

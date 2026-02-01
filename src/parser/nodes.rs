@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
-use crate::parser::types::{Type, Variable};
+use crate::parser::{expressions::Expression, types::{Type, Variable}};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct Fnc {
   pub return_type: Box<Type>,
   pub name: String,
@@ -17,11 +17,12 @@ impl Display for Fnc  {
   }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Default)]
+#[derive(Debug, PartialEq, PartialOrd, Clone, Default)]
 pub enum Node {
   Scope(Vec<Node>),
   FncDecl(Fnc),
 
+  Expr(Expression),
   #[default]
   Invalid
 }
@@ -31,7 +32,8 @@ impl Display for Node {
     match self {
       Self::Scope(s) => write!(f, "{{\n\t{}}}", s.iter().map(|n| format!("{}", n)).collect::<Vec<String>>().join("\n\t")),
       Self::FncDecl(fnc) => write!(f, "fnc {}<{}>({}) {} {}", fnc.name, fnc.id, fnc.arguments.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", "), fnc.return_type, fnc.body),
-      Self::Invalid => write!(f, "NULL")
+      Self::Expr(e) => write!(f, "{:?}", e),
+      Self::Invalid => write!(f, "NULL"),
     }
   }
 }
