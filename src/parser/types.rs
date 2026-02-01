@@ -14,6 +14,21 @@ impl Display for Variable  {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+pub enum MemoryKind {
+  Integer,
+  Float
+}
+
+impl Display for MemoryKind {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Integer => write!(f, "i"),
+      Self::Float => write!(f, "f"),
+    }
+  }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
   Alias {
     name: String,
@@ -33,7 +48,8 @@ pub enum Type {
     r#type: Box<Type>
   },
   Memory {
-    size: u64
+    size: u64,
+    kind: MemoryKind
   },
   FunctionPointer {
     return_type: Box<Type>,
@@ -46,7 +62,7 @@ impl Display for Type {
     match self {
       Self::Alias { name, is } => write!(f, "{}(actually {})", name, is),
       Self::Array { size, r#type } => write!(f, "[{}]({})", size, r#type),
-      Self::Memory { size } => write!(f, "[{}]", size),
+      Self::Memory { size, kind } => write!(f, "[{}:{}]", size, kind),
       Self::Pointer { r#type } => write!(f, "&{}", r#type),
       Self::Struct { fields } => write!(f, "struct {{ {} }}", fields.iter().map(|v| format!("{}", v)).collect::<Vec<String>>().join("; ")),
       Self::Union { fields } => write!(f, "union {{ {} }}", fields.iter().map(|v| format!("{}", v)).collect::<Vec<String>>().join("; ")),

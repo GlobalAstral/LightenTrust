@@ -1,7 +1,7 @@
 
 use std::collections::HashMap;
 
-use crate::{parser::{expressions::{ExprKind, Expression}, nodes::{Fnc, Node}, types::{Type, Variable}, utils::Processor}, tokens::token::{Token, TokenKind}};
+use crate::{parser::{expressions::{ExprKind, Expression}, nodes::{Fnc, Node}, types::{MemoryKind, Type, Variable}, utils::Processor}, tokens::token::{Token, TokenKind}};
 
 static mut CURRENT_ID: u64 = 0;
 
@@ -54,10 +54,19 @@ impl Parser {
     } else if matches!(self.base.peek().kind, TokenKind::SquareBlock(_)) {
       let block = self.base.consume().as_square_block().unwrap();
       
-      if block.len() == 1 {
+      if block.len() <= 2 && block.len() > 0 {
         let size = block[0].as_literal().and_then(|l| l.as_integer())
           .unwrap_or_else(|| self.base.error("Expected Integer Literal"));
-        Some(Type::Memory { size })
+        let kind = if let Some(t) = block.get(1) {
+          if t.kind == TokenKind::Dollar {
+            MemoryKind::Float
+          } else {
+            MemoryKind::Integer
+          }
+        } else {
+          MemoryKind::Integer
+        };
+        Some(Type::Memory { size, kind })
       
       } else if block.len() > 2 {
         let size = block[0].as_literal().and_then(|l| l.as_integer())
