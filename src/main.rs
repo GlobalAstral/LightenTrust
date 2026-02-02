@@ -49,9 +49,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut writer = CONFIGS.write()?;
     *writer = Configs {
       ptr_size: doc.get("ptr_size").unwrap().as_integer().unwrap_or(8) as u64, 
-      intl_size: doc.get("int_lit").unwrap().as_integer().unwrap_or(8) as u64, 
-      floatl_size: doc.get("float_lit").unwrap().as_integer().unwrap_or(8) as u64,
-      charl_size: doc.get("char_lit").unwrap().as_integer().unwrap_or(8) as u64, 
+      intl_size: doc.get("int_lit").unwrap().as_integer().unwrap_or(4) as u64, 
+      floatl_size: doc.get("float_lit").unwrap().as_integer().unwrap_or(4) as u64,
+      charl_size: doc.get("char_lit").unwrap().as_integer().unwrap_or(1) as u64, 
     };
   }
 

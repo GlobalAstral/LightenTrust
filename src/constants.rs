@@ -25,7 +25,7 @@ impl Default for Configs  {
 }
 
 lazy_static! {
-  pub static ref CONFIGS: RwLock<Configs> = RwLock::new(Configs { ..Default::default() });
+  pub static ref CONFIGS: RwLock<Configs> = RwLock::new(Configs::default());
 }
 
 pub fn get_configs() -> Configs {
