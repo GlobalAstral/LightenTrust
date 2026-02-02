@@ -11,7 +11,7 @@ pub enum ExprKind {
     args: Vec<Expression>
   },
   FncPtrCall {
-    id: u64,
+    expr: Box<Expression>,
     args: Vec<Expression>
   },
   Reference(Box<Expression>),
@@ -40,7 +40,7 @@ impl Display for ExprKind {
       Self::Dereference(e) => write!(f, "*{}", e),
       Self::FieldAccess { base, field } => write!(f, "{}.{}", base, field),
       Self::FncCall { id, args } => write!(f, "fnc<{}>({})", id, args.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", ")),
-      Self::FncPtrCall { id, args } => write!(f, "(&fnc)<{}>({})", id, args.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", ")),
+      Self::FncPtrCall { expr, args } => write!(f, "{}({})", expr, args.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", ")),
       Self::FncPtrRef(id) => write!(f, "(&fnc<{}>)", id),
       Self::Index { base, index } => write!(f, "{}[{}]", base, index),
       Self::Literal(l) => write!(f, "{}", l),

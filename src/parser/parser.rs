@@ -314,19 +314,57 @@ impl Parser {
       if !matches!(expr.return_type, Type::Pointer { .. } | Type::Array { .. }) {
         self.base.error("Cannot index a non array or pointer type")
       }
+      
       let block = self.base.consume().as_square_block().unwrap();
       let this: *mut Parser = self;
+      
       let i = self.base.switch(block, |_| {
         unsafe { (*this).parse_expr() }
       });
-      let t = if let Type::Array { r#type , ..} = &i.return_type {
+      
+      let t = if let Type::Array { r#type , ..} = &expr.return_type {
         r#type
-      } else if let Type::Pointer { r#type } = &i.return_type {
+      } else if let Type::Pointer { r#type } = &expr.return_type {
         r#type
       } else {
         unreachable!()
       };
-      Expression { kind: ExprKind::Index { base: Box::new(expr), index: Box::new(i.clone()) }, return_type: *t.clone() }
+      
+      Expression { kind: ExprKind::Index { base: Box::new(expr.clone()), index: Box::new(i.clone()) }, return_type: *t.clone() }
+    } else if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
+      if !matches!(expr.return_type, Type::FunctionPointer { .. }) {
+        self.base.error("Only function pointers are callable");
+      };
+      
+      let block = self.base.consume().as_paren_block().unwrap();
+      let this: *mut Parser = self;
+      
+      let arguments = self.base.switch(block, |base| {
+        let mut temp: Vec<Expression> = Vec::new();
+        let mut count: usize = 0;
+      
+        while base.has_peek() {
+          if count > 0 {
+            base.require(Token { kind: TokenKind::Comma, ..Default::default() });
+          }
+      
+          temp.push(unsafe {(*this).parse_expr()});
+          count += 1;
+        }
+        temp
+      });
+      
+      let (ret_type, args) = if let Type::FunctionPointer { return_type, arguments } = &expr.return_type {
+        (return_type, arguments)
+      } else {
+        unreachable!()
+      };
+      
+      if args.iter().zip(&arguments).all(|(x, y)| *x == y.return_type) {
+        self.base.error("Invalid Arguments for Function Pointer");
+      }
+      
+      Expression { kind: ExprKind::FncPtrCall { expr: Box::new(expr.clone()), args: arguments }, return_type: *ret_type.clone() }
     } else {
       expr
     }
