@@ -1,6 +1,8 @@
 use std::fmt::Display;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+use crate::parser::expressions::Expression;
+
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct Variable {
   pub r#type: Type,
   pub name: String,
@@ -28,7 +30,7 @@ impl Display for MemoryKind {
   }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum Type {
   Alias {
     name: String,
@@ -41,7 +43,7 @@ pub enum Type {
     fields: Vec<Variable>
   },
   Array {
-    size: u64,
+    size: Box<Expression>,
     r#type: Box<Type>
   },
   Pointer {

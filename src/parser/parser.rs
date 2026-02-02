@@ -69,20 +69,21 @@ impl Parser {
         Some(Type::Memory { size, kind })
       
       } else if block.len() > 2 {
-        let size = block[0].as_literal().and_then(|l| l.as_integer())
-          .unwrap_or_else(|| self.base.error("Expected Integer Literal"));
-        
-        if block[1].kind != TokenKind::Semicolon {
-          self.base.error("Expected Semicolon for Array type")
-        };
-
-        let temp: Vec<Token> = block[2..].iter().map(|e| e.clone()).collect();
         let this: *mut Parser = self;
-        let r#type = self.base.switch(temp, |base| {
-          unsafe { (*this).parse_type() }.unwrap_or_else(|| base.error("Expected Type"))
+        
+        let (size, r#type) = self.base.switch(block, |base| {
+          let size = unsafe { (*this).parse_expr() };
+          
+          base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
+          
+          let r#type = unsafe { (*this).parse_type() }
+            .unwrap_or_else(|| base.error("Expected Type"));
+          
+          (Box::new(size), r#type)
         });
+        
         Some(Type::Array { size, r#type: Box::new(r#type) })
-      
+
       } else {
         self.base.error("Only array or memory type can be described with []")
       }

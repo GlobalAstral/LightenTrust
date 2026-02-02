@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, fmt::Display};
 
 use crate::{constants::get_configs, parser::types::{MemoryKind, Type}};
 
@@ -8,6 +8,17 @@ pub enum Literal {
   Float(f64),
   Char(u8),
   String(String)
+}
+
+impl Display for Literal {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Integer(i) => write!(f, "{}", i),
+      Self::Float(fl) => write!(f, "{}", fl),
+      Self::Char(c) => write!(f, "'{}'", *c as char),
+      Self::String(s) => write!(f, "\"{}\"", s)
+    }
+  }
 }
 
 impl Literal {
