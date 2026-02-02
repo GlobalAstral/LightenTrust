@@ -1,7 +1,6 @@
 use std::sync::RwLock;
 
 use lazy_static::lazy_static;
-use toml_edit::Document;
 
 pub static EXTENSION: &str = "lt";
 

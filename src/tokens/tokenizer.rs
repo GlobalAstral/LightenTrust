@@ -106,20 +106,16 @@ impl Tokenizer {
   }
 
   fn is_char_present(&mut self, c: char) -> bool {
-    let mut passed: usize = 0;
-    let mut exists: bool = false;
+    let temp = self.input.clone();
     while let Some(ch) = self.input.peek() {
       if *ch == c {
-        exists = true;
-        break;
+        self.input = temp;
+        return true;
       }
       self.input.next();
-      passed += 1;
     };
-    for _ in 0..passed {
-      self.input.next_back();
-    }
-    exists
+    self.input = temp;
+    return false;
   }
 
   fn token_one(&mut self) -> Option<Token> {
@@ -200,6 +196,7 @@ impl Tokenizer {
               "union" => Some(TokenKind::Union),
               "enum" => Some(TokenKind::Enum),
               "to" => Some(TokenKind::To),
+              "sizeof" => Some(TokenKind::SizeOf),
               s => Some(TokenKind::Identifier(s.to_string()))
             }
           } else if c.is_digit(10) {

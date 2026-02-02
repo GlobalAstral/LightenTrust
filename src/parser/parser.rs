@@ -1,7 +1,7 @@
 
 use std::collections::HashMap;
 
-use crate::{parser::{expressions::{ExprKind, Expression}, nodes::{Fnc, Node}, types::{MemoryKind, Type, Variable}, utils::Processor}, tokens::token::{Token, TokenKind}};
+use crate::{constants::CONFIGS, parser::{expressions::{ExprKind, Expression}, nodes::{Fnc, Node}, types::{MemoryKind, Type, Variable}, utils::Processor}, tokens::token::{Token, TokenKind}};
 
 static mut CURRENT_ID: u64 = 0;
 
@@ -163,7 +163,22 @@ impl Parser {
   }
 
   fn parse_expr(&mut self) -> Expression {
-    if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
+    if self.base.tryconsume(Token { kind: TokenKind::SizeOf, ..Default::default() }) {
+      Expression { kind: ExprKind::SizeOf(Box::new(self.parse_expr())), return_type: Type::Memory { size: CONFIGS.read().unwrap().ptr_size, kind: MemoryKind::Integer } }
+    } else if self.base.tryconsume(Token { kind: TokenKind::Ampersand, ..Default::default() }) {
+      let expr = self.parse_expr();
+      Expression { return_type: Type::Pointer { r#type: Box::new(expr.return_type.clone()) }, kind: ExprKind::Reference(Box::new(expr)) }
+    
+    } else if matches!(self.base.peek().kind, TokenKind::Symbols(s) if s == "*") {
+      self.base.consume();
+      let expr = self.parse_expr();
+    
+      if let Type::Pointer { r#type } = &expr.return_type {
+        return Expression { return_type: *r#type.clone(), kind: ExprKind::Dereference(Box::new(expr)) }
+      }
+      self.base.error("Cannot dereference a non pointer type");
+    
+    } else if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
       let block = self.base.consume().as_paren_block().unwrap();
       let this: *mut Parser = self;
       self.base.switch(block, |_| unsafe { (*this).parse_expr() })
@@ -172,6 +187,7 @@ impl Parser {
       let lit = self.base.consume().as_literal().unwrap();
       println!("{:?}", lit);
       Expression { return_type: lit.get_type(), kind: ExprKind::Literal(lit)}
+    
     } else if matches!(self.base.peek().kind, TokenKind::Identifier(_)) {
       let name = self.base.consume().as_identifier().unwrap().to_string();
 
@@ -204,29 +220,91 @@ impl Parser {
         if found_funcs.is_empty() {
           self.base.error(&format!("Function {} does not exist with such arguments", name))
         }
+        
         let function = if found_funcs.len() > 1 {
           self.base.require(Token { kind: TokenKind::Dollar, ..Default::default() });
+          
           if let Some(t) = self.parse_type() {
             found_funcs.iter().find(|f| *f.return_type == t)
               .unwrap_or_else(|| self.base.error(&format!("Function {} does not exist with such arguments and specified type", name)))
+          
           } else {
             self.base.error("Expected Type specifier");
           }
+        
         } else {
           &found_funcs[0]
         };
         Expression { kind: ExprKind::FncCall { id: function.id, args }, return_type: *function.return_type.clone() }
       
+      } else if self.functions.iter().find(|f| f.name == name).is_some() {
+        let funcs: Vec<Fnc> = self.functions.iter().filter(|f| f.name == name).cloned().collect();
+        
+        if funcs.len() > 1 {
+          
+          if matches!(self.base.peek().kind, TokenKind::AngleBlock(_)) {
+            let block = self.base.consume().as_angle_block().unwrap();
+            let this: *mut Parser = self;
+            let args = self.base.switch(block, |base| {
+              let mut args: Vec<Type> = Vec::new();
+              let mut count: usize = 0;
+            
+              while base.has_peek() {
+            
+                if count > 0 {
+                  base.require(Token { kind: TokenKind::Comma, ..Default::default() });
+                }
+            
+                args.push(unsafe { (*this).parse_type() }.unwrap_or_else(|| base.error("Expected Type")));
+                count += 1;
+              };
+              args
+            });
+            
+            let funcs: Vec<&Fnc> = funcs.iter().filter(|f| {
+              f.arguments.len() == args.len() &&
+              f.arguments.iter().zip(&args).all(|(x, y)| x.r#type == *y)
+            }).collect();
+            
+            if funcs.is_empty() {
+              self.base.error(&format!("Function {} with such arguments does not exist", name))
+            }
+            
+            if funcs.len() == 1 {
+              Expression { kind: ExprKind::FncPtrRef(funcs[0].id), return_type: *funcs[0].return_type.clone() }
+            
+            } else {
+              self.base.require(Token { kind: TokenKind::Dollar, ..Default::default() });
+              let t = self.parse_type().unwrap_or_else(|| self.base.error("Expected Type"));
+            
+              if let Some(f) = funcs.iter().find(|f| *f.return_type == t) {
+                Expression { kind: ExprKind::FncPtrRef(f.id), return_type: *f.return_type.clone() }
+            
+              } else {
+                self.base.error(&format!("Function {} with such arguments and return type does not exist", name))
+              }
+            }
+          
+          } else {
+            self.base.error(&format!("Expected Type specifier for {}", name))
+          }
+        
+        } else {
+          Expression { kind: ExprKind::FncPtrRef(funcs[0].id), return_type: *funcs[0].return_type.clone() }
+        }
+      
       } else {
         let var = 
           if let Some(var) = self.globals.iter().find(|v| v.name == name) {
             var
+      
           } else {
             self.locals.iter().find(|v| v.name == name)
               .unwrap_or_else(|| self.base.error(&format!("Variable {} does not exist", name)))
           };
         Expression { kind: ExprKind::Variable(var.id), return_type: var.r#type.clone() }
       }
+    
     } else {
       self.base.error("Expected Expression");
     }
