@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::parser::{literals::Literal, types::Type};
+use crate::parser::{literals::Literal, types::{Type, Variable}};
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum ExprKind {
@@ -22,7 +22,7 @@ pub enum ExprKind {
   },
   FieldAccess {
     base: Box<Expression>,
-    field: String
+    field: Variable
   },
   Cast {
     base: Box<Expression>,

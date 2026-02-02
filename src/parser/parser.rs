@@ -365,6 +365,29 @@ impl Parser {
       }
       
       Expression { kind: ExprKind::FncPtrCall { expr: Box::new(expr.clone()), args: arguments }, return_type: *ret_type.clone() }
+    } else if self.base.tryconsume(Token { kind: TokenKind::Dot, ..Default::default() }) {
+      if !matches!(expr.return_type, Type::Struct { .. } | Type::Union { .. }) {
+        self.base.error("Cannot access a field of a non struct or union type");
+      };
+      
+      let fields = if let Type::Struct { fields } = &expr.return_type {
+        fields
+      } else if let Type::Union { fields } = &expr.return_type {
+        fields
+      } else {
+        unreachable!()
+      }.clone();
+      
+      let name = self.base.consume().as_identifier()
+        .unwrap_or_else(|| self.base.error("Expected Identifier")).to_string();
+
+      let var = fields.iter().find(|v| v.name == name)
+        .unwrap_or_else(|| self.base.error(&format!("No field {} exists for type", name)));
+
+      Expression { return_type: var.r#type.clone(), kind: ExprKind::FieldAccess { base: Box::new(expr), field: var.clone() } }
+    } else if self.base.tryconsume(Token { kind: TokenKind::To, ..Default::default() }) {
+      let t = self.parse_type().unwrap_or_else(|| self.base.error("Expected Type"));
+      Expression { kind: ExprKind::Cast { base: Box::new(expr), into: t.clone() }, return_type: t }
     } else {
       expr
     }
