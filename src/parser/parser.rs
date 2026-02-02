@@ -164,7 +164,7 @@ impl Parser {
   }
 
   fn parse_expr(&mut self) -> Expression {
-    if self.base.tryconsume(Token { kind: TokenKind::SizeOf, ..Default::default() }) {
+    let expr = if self.base.tryconsume(Token { kind: TokenKind::SizeOf, ..Default::default() }) {
       Expression { kind: ExprKind::SizeOf(Box::new(self.parse_expr())), return_type: Type::Memory { size: CONFIGS.read().unwrap().ptr_size, kind: MemoryKind::Integer } }
     } else if self.base.tryconsume(Token { kind: TokenKind::Ampersand, ..Default::default() }) {
       let expr = self.parse_expr();
@@ -308,6 +308,27 @@ impl Parser {
     
     } else {
       self.base.error("Expected Expression");
+    };
+
+    if matches!(self.base.peek().kind, TokenKind::SquareBlock(_)) {
+      if !matches!(expr.return_type, Type::Pointer { .. } | Type::Array { .. }) {
+        self.base.error("Cannot index a non array or pointer type")
+      }
+      let block = self.base.consume().as_square_block().unwrap();
+      let this: *mut Parser = self;
+      let i = self.base.switch(block, |_| {
+        unsafe { (*this).parse_expr() }
+      });
+      let t = if let Type::Array { r#type , ..} = &i.return_type {
+        r#type
+      } else if let Type::Pointer { r#type } = &i.return_type {
+        r#type
+      } else {
+        unreachable!()
+      };
+      Expression { kind: ExprKind::Index { base: Box::new(expr), index: Box::new(i.clone()) }, return_type: *t.clone() }
+    } else {
+      expr
     }
   }
 

@@ -32,7 +32,7 @@ impl Display for Node {
     match self {
       Self::Scope(s) => write!(f, "{{\n\t{}}}", s.iter().map(|n| format!("{}", n)).collect::<Vec<String>>().join("\n\t")),
       Self::FncDecl(fnc) => write!(f, "fnc {}<{}>({}) {} {}", fnc.name, fnc.id, fnc.arguments.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", "), fnc.return_type, fnc.body),
-      Self::Expr(e) => write!(f, "{:?}", e),
+      Self::Expr(e) => write!(f, "{}", e),
       Self::Invalid => write!(f, "NULL"),
     }
   }
