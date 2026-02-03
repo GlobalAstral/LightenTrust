@@ -525,8 +525,14 @@ impl Parser {
           .unwrap_or_else(|| base.error("Expected Integer Literal"));
         (left, right, return_type, prec)
       });
-
+      let before = self.locals.len();
+      self.locals.push(left.clone());
+      if let Some(right) = &right {
+        self.locals.push(right.clone());
+      }
       let body = self.parse_one();
+
+      self.locals.drain(before..);
 
       let op: Operator = Operator {
         symbols, 
