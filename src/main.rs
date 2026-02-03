@@ -55,6 +55,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
   }
 
+  //* var_decl, public_field, import, namesp, defer, var_set, return_stmt, 
+  //* asm_code, operation_decl, cast_decl, if_stmt, while_stmt, do_while_stmt, for_stmt,
+
   let content = fs::read_to_string(input_file)?;
   let mut tokenizer: Tokenizer = Tokenizer::new(&content);
   let tokens = tokenizer.tokenize();
