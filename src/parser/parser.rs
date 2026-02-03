@@ -474,6 +474,7 @@ impl Parser {
       let return_type = self.parse_type()
         .unwrap_or_else(|| self.base.error("Expected function return type"));
 
+      let before = self.locals.len();
       arguments.iter().for_each(|arg| {
         self.locals.push(arg.clone());
       });
@@ -488,6 +489,7 @@ impl Parser {
         Some(Box::new(body))
       };
       
+      self.locals.drain(before..);
       
       let fnc = Fnc {name: name.clone(), return_type: Box::new(return_type.clone()), arguments: arguments.clone(), body: body, id: generate_id()};
       if self.functions.iter().find(|a| {
