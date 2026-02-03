@@ -198,7 +198,6 @@ impl Parser {
     
     } else if matches!(self.base.peek().kind, TokenKind::Literal(_)) {
       let lit = self.base.consume().as_literal().unwrap();
-      println!("{:?}", lit);
       Expression { return_type: lit.get_type(), kind: ExprKind::Literal(lit)}
     
     } else if matches!(self.base.peek().kind, TokenKind::Identifier(_)) {
