@@ -1,6 +1,16 @@
 use std::fmt::Display;
 
-use crate::parser::{literals::Literal, types::{Type, Variable}};
+use crate::parser::{literals::Literal, nodes::Node, types::{Type, Variable}};
+
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
+pub struct Operator {
+  pub symbols: String,
+  pub left: Variable,
+  pub right: Option<Variable>,
+  pub return_type: Type,
+  pub precedence: u64,
+  pub body: Box<Node>
+}
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum ExprKind {

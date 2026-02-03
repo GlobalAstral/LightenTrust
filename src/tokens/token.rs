@@ -9,7 +9,7 @@ pub enum TokenKind {
   AngleBlock(Vec<Token>),
   SquareBlock(Vec<Token>),
   Semicolon, Dot, Comma, Ampersand, Dollar,
-  Return, Asm(String), Type, If, Else, While, Do, For, Namespace, Fnc, Inline, Struct, Union, Enum, To, SizeOf,
+  Return, Asm, Type, If, Else, While, Do, For, Namespace, Fnc, Inline, Struct, Union, Enum, To, SizeOf, Operator,
   Identifier(String),
   Literal(String),
   Symbols(String),
@@ -44,12 +44,6 @@ impl Token {
   pub fn as_angle_block(&self) -> Option<Vec<Token>> {
     match &self.kind {
       TokenKind::AngleBlock(s) => Some(s.clone()),
-      _ => None
-    }
-  }
-  pub fn as_asm(&self) -> Option<&str> {
-    match &self.kind {
-      TokenKind::Asm(s) => Some(&s),
       _ => None
     }
   }
@@ -130,8 +124,11 @@ impl Display for Token {
       TokenKind::SizeOf => {
         write!(f, "sizeof")
       },
-      TokenKind::Asm(s) => {
-        write!(f, "asm \"{}\"", s)
+      TokenKind::Operator => {
+        write!(f, "operator")
+      },
+      TokenKind::Asm=> {
+        write!(f, "asm")
       },
       TokenKind::Type => {
         write!(f, "type")

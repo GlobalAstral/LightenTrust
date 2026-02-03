@@ -176,13 +176,7 @@ impl Tokenizer {
             };
             match buf.as_str() {
               "return" => Some(TokenKind::Return),
-              "asm" => {
-                if let Some(ch) = self.input.peek() && *ch != '{' {
-                  self.error("Expected '{' after 'asm'");
-                }
-                self.input.next();
-                Some(TokenKind::Asm(self.get_until('}')))
-              },
+              "asm" => Some(TokenKind::Asm),
               "type" => Some(TokenKind::Type),
               "if" => Some(TokenKind::If),
               "else" => Some(TokenKind::Else),
@@ -197,6 +191,7 @@ impl Tokenizer {
               "enum" => Some(TokenKind::Enum),
               "to" => Some(TokenKind::To),
               "sizeof" => Some(TokenKind::SizeOf),
+              "operator" => Some(TokenKind::Operator),
               s => Some(TokenKind::Identifier(s.to_string()))
             }
           } else if c.is_digit(10) {
@@ -212,7 +207,7 @@ impl Tokenizer {
           } else if !c.is_whitespace() {
             let mut buf: String = String::from(c);
             while let Some(ch) = self.input.peek() {
-              if !ch.is_whitespace() {
+              if !ch.is_whitespace() && (*ch != '<' || !self.is_char_present('>')) {
                 buf.push(self.input.next().unwrap());
                 continue;
               }

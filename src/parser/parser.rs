@@ -1,7 +1,7 @@
 
 use std::collections::HashMap;
 
-use crate::{constants::CONFIGS, parser::{expressions::{ExprKind, Expression}, nodes::{Fnc, Node}, types::{MemoryKind, Type, Variable}, utils::Processor}, tokens::token::{Token, TokenKind}};
+use crate::{constants::CONFIGS, parser::{expressions::{ExprKind, Expression, Operator}, nodes::{Fnc, Node}, types::{MemoryKind, Type, Variable}, utils::Processor}, tokens::token::{Token, TokenKind}};
 
 static mut CURRENT_ID: u64 = 0;
 
@@ -20,6 +20,7 @@ pub struct Parser {
   globals: Vec<Variable>,
   scope_depth: usize,
   functions: Vec<Fnc>,
+  operators: Vec<Operator>
 }
 
 impl Parser {
@@ -30,7 +31,8 @@ impl Parser {
       globals: Vec::new(), 
       locals: Vec::new(), 
       scope_depth: 0, 
-      functions: Vec::new()
+      functions: Vec::new(),
+      operators: Vec::new()
     }
   }
 
@@ -437,12 +439,18 @@ impl Parser {
         self.locals.push(arg.clone());
       });
 
-      let body = self.parse_one();
-      if !matches!(body, Node::Scope(_)) {
-        self.base.error("Scope for function body is mandatory")
+      let body = if self.base.tryconsume(Token { kind: TokenKind::Semicolon, ..Default::default() }) {
+        None
+      } else {
+        let body = self.parse_one();
+        if !matches!(body, Node::Scope(_)) {
+          self.base.error("Scope for function body is mandatory")
+        };
+        Some(Box::new(body))
       };
       
-      let fnc = Fnc {name: name.clone(), return_type: Box::new(return_type.clone()), arguments: arguments.clone(), body: Box::new(body.clone()), id: generate_id()};
+      
+      let fnc = Fnc {name: name.clone(), return_type: Box::new(return_type.clone()), arguments: arguments.clone(), body: body, id: generate_id()};
       if self.functions.iter().find(|a| {
         a.name == name && 
         a.arguments.len() == arguments.len() && 
@@ -455,6 +463,51 @@ impl Parser {
       self.functions.push(fnc.clone());
       Node::FncDecl(fnc)
     
+    } else if self.base.tryconsume(Token { kind: TokenKind::Operator, ..Default::default() }) {
+      let symbols = self.base.consume().as_symbols()
+        .unwrap_or_else(|| self.base.error("Expected Operator symbol")).to_string();
+
+      if !matches!(self.base.peek().kind, TokenKind::AngleBlock(_)) {
+        self.base.error("Expected Operator Signature");
+      }
+
+      let block = self.base.consume().as_angle_block().unwrap();
+      let this: *mut Parser = self;
+      let (left, right, ret, prec) = self.base.switch(block, |base| {
+        let left = unsafe {(*this).parse_var()};
+        base.require(Token { kind: TokenKind::Comma, ..Default::default() });
+        let right = if base.tryconsume(Token { kind: TokenKind::Dollar, ..Default::default() }) { None } 
+          else { Some(unsafe {(*this).parse_var()}) };
+        base.require(Token { kind: TokenKind::Comma, ..Default::default() });
+        let return_type = unsafe {(*this).parse_type()}
+          .unwrap_or_else(|| base.error("Expected Type"));
+        base.require(Token { kind: TokenKind::Comma, ..Default::default() });
+        let prec = base.consume().as_literal().and_then(|l| l.as_integer())
+          .unwrap_or_else(|| base.error("Expected Integer Literal"));
+        (left, right, return_type, prec)
+      });
+
+      let body = self.parse_one();
+
+      let op: Operator = Operator {
+        symbols, 
+        left, 
+        right, 
+        return_type: ret, 
+        precedence: prec, 
+        body: Box::new(body)
+      };
+      let temp = self.operators.iter().find(|o| {
+        o.symbols == op.symbols &&
+        o.right.as_ref().map(|r| &r.r#type) == op.right.as_ref().map(|r| &r.r#type) &&
+        o.left.r#type == op.left.r#type &&
+        o.return_type == op.return_type
+      });
+      if temp.is_some() {
+        self.base.error("Operator already exists");
+      };
+      self.operators.push(op.clone());
+      Node::OperatorDecl(op)
     } else {
       Node::Expr(self.parse_expr())
     }
