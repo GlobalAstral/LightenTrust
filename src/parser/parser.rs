@@ -166,7 +166,17 @@ impl Parser {
   }
 
   fn parse_expr(&mut self) -> Expression {
-    let expr = if self.base.tryconsume(Token { kind: TokenKind::SizeOf, ..Default::default() }) {
+    let expr = if matches!(self.base.peek().kind, TokenKind::Symbols(_)) {
+      let symbols = self.base.consume().as_symbols().unwrap().to_string();
+      let expr = self.parse_expr();
+      let op = self.operators.iter().find(|op| {
+        op.symbols == symbols &&
+        op.right == None &&
+        op.left.r#type == expr.return_type
+      }).unwrap_or_else(|| self.base.error(&format!("Unary operator {} for {} does not exist", symbols, expr)));
+      let temp = op.return_type.clone();
+      Expression { kind: ExprKind::Unary { expr: Box::new(expr), operator:  op.clone()}, return_type: temp }
+    } else if self.base.tryconsume(Token { kind: TokenKind::SizeOf, ..Default::default() }) {
       Expression { kind: ExprKind::SizeOf(Box::new(self.parse_expr())), return_type: Type::Memory { size: CONFIGS.read().unwrap().ptr_size, kind: MemoryKind::Integer } }
     } else if self.base.tryconsume(Token { kind: TokenKind::Ampersand, ..Default::default() }) {
       let expr = self.parse_expr();
@@ -390,6 +400,35 @@ impl Parser {
     } else if self.base.tryconsume(Token { kind: TokenKind::To, ..Default::default() }) {
       let t = self.parse_type().unwrap_or_else(|| self.base.error("Expected Type"));
       Expression { kind: ExprKind::Cast { base: Box::new(expr), into: t.clone() }, return_type: t }
+    } else if matches!(self.base.peek().kind, TokenKind::Symbols(_)) {
+      let left = expr;
+      let symbols = self.base.consume().as_symbols().unwrap().to_string();
+      let right = self.parse_expr();
+      let op = self.operators.iter().find(|op| {
+        op.symbols == symbols &&
+        op.right.as_ref().unwrap().r#type == right.return_type &&
+        op.left.r#type == left.return_type
+      }).unwrap_or_else(|| self.base.error(&format!("Binary operator {} for {} and {} does not exist", symbols, left, right)));
+      if let ExprKind::Binary { left: l, right: r, operator: bin_op } = &right.kind {
+        if op.precedence > bin_op.precedence {
+          let bin: Expression = Expression {
+            kind: ExprKind::Binary { left: Box::new(left), right: l.clone(), operator: op.clone() }, 
+            return_type: op.return_type.clone()
+          };
+          let bin: Expression = Expression {
+            kind: ExprKind::Binary { left: Box::new(bin), right: r.clone(), operator: bin_op.clone() },
+            return_type: bin_op.return_type.clone()
+          };
+          bin
+        } else {
+          Expression {
+            kind: ExprKind::Binary { left: Box::new(left), right: Box::new(Expression { kind: ExprKind::Binary { left: l.clone(), right: r.clone(), operator: bin_op.clone() }, return_type: bin_op.return_type.clone()}), operator: op.clone() }, 
+            return_type: op.return_type.clone()
+          }
+        }
+      } else {
+        Expression { kind: ExprKind::Binary { left: Box::new(left), right: Box::new(right), operator: op.clone() }, return_type: op.return_type.clone() }
+      }
     } else {
       expr
     }
@@ -500,8 +539,7 @@ impl Parser {
       let temp = self.operators.iter().find(|o| {
         o.symbols == op.symbols &&
         o.right.as_ref().map(|r| &r.r#type) == op.right.as_ref().map(|r| &r.r#type) &&
-        o.left.r#type == op.left.r#type &&
-        o.return_type == op.return_type
+        o.left.r#type == op.left.r#type
       });
       if temp.is_some() {
         self.base.error("Operator already exists");

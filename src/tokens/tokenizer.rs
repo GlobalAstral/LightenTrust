@@ -204,10 +204,10 @@ impl Tokenizer {
               break;
             };
             Some(TokenKind::Literal(buf))
-          } else if !c.is_whitespace() {
+          } else if !c.is_whitespace() && !c.is_alphanumeric() {
             let mut buf: String = String::from(c);
             while let Some(ch) = self.input.peek() {
-              if !ch.is_whitespace() && (*ch != '<' || !self.is_char_present('>')) {
+              if !ch.is_whitespace() && !ch.is_alphanumeric() && (*ch != '<' || !self.is_char_present('>')) {
                 buf.push(self.input.next().unwrap());
                 continue;
               }

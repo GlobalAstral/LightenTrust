@@ -40,7 +40,15 @@ pub enum ExprKind {
   },
   FncPtrRef(u64),
   SizeOf(Box<Expression>),
-  //TODO ADD CUSTOM OPERANDS LATER!
+  Unary {
+    expr: Box<Expression>,
+    operator: Operator
+  },
+  Binary {
+    left: Box<Expression>,
+    right: Box<Expression>,
+    operator: Operator
+  }
 }
 
 impl Display for ExprKind {
@@ -56,14 +64,16 @@ impl Display for ExprKind {
       Self::Literal(l) => write!(f, "{}", l),
       Self::Reference(r) => write!(f, "&{}", r),
       Self::SizeOf(e) => write!(f, "sizeof {}", e),
-      Self::Variable(v) => write!(f, "({})", v) 
+      Self::Variable(v) => write!(f, "({})", v),
+      Self::Unary { expr, operator } => write!(f, "{}{}", operator.symbols, expr),
+      Self::Binary { left, right, operator } => write!(f, "{} {} {}", left, operator.symbols, right)
     }
   }
 }
 
 impl Display for Expression {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{} -> {}", self.kind, self.return_type)
+    write!(f, "( {} -> {} )", self.kind, self.return_type)
   }
 }
 
