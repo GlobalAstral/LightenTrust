@@ -22,8 +22,9 @@ pub enum Node {
   Scope(Vec<Node>),
   FncDecl(Fnc),
   OperatorDecl(Operator),
-
   Expr(Expression),
+
+  Ignored,
   #[default]
   Invalid
 }
@@ -40,6 +41,7 @@ impl Display for Node {
         } else { String::new() };
         write!(f, "{} {} {} - {} -> {}", operator.left, operator.symbols, temp, operator.precedence, operator.return_type)
       },
+      Self::Ignored => write!(f, "Ignored"),
       Self::Invalid => write!(f, "NULL"),
     }
   }

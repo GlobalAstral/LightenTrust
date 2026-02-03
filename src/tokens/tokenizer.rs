@@ -177,7 +177,7 @@ impl Tokenizer {
             match buf.as_str() {
               "return" => Some(TokenKind::Return),
               "asm" => Some(TokenKind::Asm),
-              "type" => Some(TokenKind::Type),
+              "typedef" => Some(TokenKind::Typedef),
               "if" => Some(TokenKind::If),
               "else" => Some(TokenKind::Else),
               "while" => Some(TokenKind::While),

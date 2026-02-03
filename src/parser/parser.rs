@@ -15,7 +15,7 @@ fn generate_id() -> u64 {
 
 pub struct Parser {
   base: Processor<Token>,
-  types: HashMap<String, Type>,
+  types: HashMap<String, Option<Type>>,
   locals: Vec<Variable>,
   globals: Vec<Variable>,
   scope_depth: usize,
@@ -98,7 +98,7 @@ impl Parser {
       };
       
       let r#type = self.types.get(&id).cloned().unwrap();
-      Some(Type::Alias { name: id, is: Box::new(r#type) })
+      Some(Type::Alias { name: id, is: Box::new(r#type.unwrap()) })
     
     } else if self.base.tryconsume(Token { kind: TokenKind::Struct, ..Default::default() }) {
       if matches!(self.base.peek().kind, TokenKind::CurlyBlock(_)) {
@@ -172,7 +172,7 @@ impl Parser {
       let op = self.operators.iter().find(|op| {
         op.symbols == symbols &&
         op.right == None &&
-        op.left.r#type == expr.return_type
+        op.left.r#type.compatible_with(&expr.return_type)
       }).unwrap_or_else(|| self.base.error(&format!("Unary operator {} for {} does not exist", symbols, expr)));
       let temp = op.return_type.clone();
       Expression { kind: ExprKind::Unary { expr: Box::new(expr), operator:  op.clone()}, return_type: temp }
@@ -225,7 +225,7 @@ impl Parser {
         .filter(|f| {
           f.name == name &&
           f.arguments.len() == args.len() &&
-          f.arguments.iter().zip(&args).all(|(x, y)| x.r#type == y.return_type)
+          f.arguments.iter().zip(&args).all(|(x, y)| x.r#type.compatible_with(&y.return_type))
         })
         .cloned()
         .collect();
@@ -238,7 +238,7 @@ impl Parser {
           self.base.require(Token { kind: TokenKind::Dollar, ..Default::default() });
           
           if let Some(t) = self.parse_type() {
-            found_funcs.iter().find(|f| *f.return_type == t)
+            found_funcs.iter().find(|f| f.return_type.compatible_with(&t))
               .unwrap_or_else(|| self.base.error(&format!("Function {} does not exist with such arguments and specified type", name)))
           
           } else {
@@ -276,7 +276,7 @@ impl Parser {
             
             let funcs: Vec<&Fnc> = funcs.iter().filter(|f| {
               f.arguments.len() == args.len() &&
-              f.arguments.iter().zip(&args).all(|(x, y)| x.r#type == *y)
+              f.arguments.iter().zip(&args).all(|(x, y)| x.r#type.compatible_with(y))
             }).collect();
             
             if funcs.is_empty() {
@@ -290,7 +290,7 @@ impl Parser {
               self.base.require(Token { kind: TokenKind::Dollar, ..Default::default() });
               let t = self.parse_type().unwrap_or_else(|| self.base.error("Expected Type"));
             
-              if let Some(f) = funcs.iter().find(|f| *f.return_type == t) {
+              if let Some(f) = funcs.iter().find(|f| f.return_type.compatible_with(&t)) {
                 Expression { kind: ExprKind::FncPtrRef(f.id), return_type: *f.return_type.clone() }
             
               } else {
@@ -372,7 +372,7 @@ impl Parser {
         unreachable!()
       };
       
-      if args.iter().zip(&arguments).all(|(x, y)| *x == y.return_type) {
+      if args.iter().zip(&arguments).all(|(x, y)| x.compatible_with(&y.return_type)) {
         self.base.error("Invalid Arguments for Function Pointer");
       }
       
@@ -406,8 +406,8 @@ impl Parser {
       let right = self.parse_expr();
       let op = self.operators.iter().find(|op| {
         op.symbols == symbols &&
-        op.right.as_ref().unwrap().r#type == right.return_type &&
-        op.left.r#type == left.return_type
+        op.right.as_ref().unwrap().r#type.compatible_with(&right.return_type) &&
+        op.left.r#type.compatible_with(&left.return_type)
       }).unwrap_or_else(|| self.base.error(&format!("Binary operator {} for {} and {} does not exist", symbols, left, right)));
       if let ExprKind::Binary { left: l, right: r, operator: bin_op } = &right.kind {
         if op.precedence > bin_op.precedence {
@@ -495,8 +495,8 @@ impl Parser {
       if self.functions.iter().find(|a| {
         a.name == name && 
         a.arguments.len() == arguments.len() && 
-        a.arguments.iter().zip(&arguments).all(|(x, y)| x.r#type == y.r#type) &&
-        *a.return_type == return_type
+        a.arguments.iter().zip(&arguments).all(|(x, y)| x.r#type.compatible_with(&y.r#type)) &&
+        a.return_type.compatible_with(&return_type) 
       }).is_some() {
         self.base.error(&format!("Function {} already exists", fnc))
       };
@@ -546,14 +546,25 @@ impl Parser {
       };
       let temp = self.operators.iter().find(|o| {
         o.symbols == op.symbols &&
-        o.right.as_ref().map(|r| &r.r#type) == op.right.as_ref().map(|r| &r.r#type) &&
-        o.left.r#type == op.left.r#type
+        o.right.as_ref().map(|r| &r.r#type).unwrap().compatible_with(op.right.as_ref().map(|r| &r.r#type).unwrap()) &&
+        o.left.r#type.compatible_with(&op.left.r#type)
       });
       if temp.is_some() {
         self.base.error("Operator already exists");
       };
       self.operators.push(op.clone());
       Node::OperatorDecl(op)
+    } else if self.base.tryconsume(Token { kind: TokenKind::Typedef, ..Default::default() }) {
+      let name = self.base.consume().as_identifier()
+        .unwrap_or_else(|| self.base.error("Expected Identifier")).to_string();
+      if self.types.contains_key(&name) {
+        self.base.error(&format!("Typedef {} already exists", &name));
+      }
+      self.types.insert(name.clone(), None);
+      let t = self.parse_type()
+        .unwrap_or_else(|| self.base.error("Expected Type"));
+      self.types.insert(name, Some(t));
+      Node::Ignored
     } else {
       Node::Expr(self.parse_expr())
     }
@@ -562,7 +573,13 @@ impl Parser {
   pub fn parse(&mut self) -> Vec<Node> {
     let mut ret: Vec<Node> = Vec::new();
     while self.base.has_peek() {
-      ret.push(self.parse_one());
+      let t = self.parse_one();
+      if matches!(t, Node::Invalid) {
+        self.base.error(&format!("Invalid Statement {}", t))
+      }
+      if !matches!(t, Node::Ignored) {
+        ret.push(t);
+      }
     }
     return ret;
   }

@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::parser::expressions::Expression;
+use crate::{constants::CONFIGS, parser::expressions::{ExprKind, Expression}};
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct Variable {
@@ -70,5 +70,47 @@ impl Display for Type {
       Self::Union { fields } => write!(f, "union {{ {} }}", fields.iter().map(|v| format!("{}", v)).collect::<Vec<String>>().join("; ")),
       Self::FunctionPointer { return_type, arguments } => write!(f, "fnc({}) {}", arguments.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", "), return_type)
     }
+  }
+}
+
+impl Type {
+  pub fn root(&self) -> &Type {
+    match self {
+      Self::Alias { is, .. } => is.root(),
+      _ => self
+    }
+  }
+  
+  pub fn compatible_with(&self, other: &Type) -> bool {
+    if matches!(self, Self::Array { .. }) && matches!(other, Self::Pointer { .. }) {
+      let Type::Array { r#type: t, .. } = self else { unreachable!() };
+      let Type::Pointer { r#type: t2} = other else { unreachable!() };
+      return t.compatible_with(&t2)
+    }
+
+    if matches!(self, Self::Struct { .. }) && matches!(other, Self::Struct { .. }) {
+      let Type::Struct { fields: f1 } = self else { unreachable!() };
+      let Type::Struct { fields: f2 } = other else { unreachable!() };
+      return f2.len() == f2.len() && f1.iter().zip(f2).all(|(a, b)| a.r#type.compatible_with(&b.r#type))
+    }
+    
+    if matches!(self, Self::Union { .. }) && matches!(other, Self::Union { .. }) {
+      let Type::Union { fields: f1 } = self else { unreachable!() };
+      let Type::Union { fields: f2 } = other else { unreachable!() };
+      return f1.iter().zip(f2).all(|(a, b)| a.r#type.compatible_with(&b.r#type))
+    }
+
+    if matches!((self, other), (Self::Pointer { .. }, Self::Pointer { .. })) {
+      return true;
+    }
+
+    let Type::Memory { size: s1, kind: k1 } = self.root() else {
+      return false;
+    };
+    let Type::Memory { size: s2, kind: k2 } = other.root() else {
+      return false;
+    };
+
+    k1 == k2 && s1 <= s2
   }
 }
