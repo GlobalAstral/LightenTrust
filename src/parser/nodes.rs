@@ -31,6 +31,7 @@ pub enum Node {
     var: Variable,
     expr: Expression
   },
+  Return(Expression),
   Expr(Expression),
 
   Ignored,
@@ -53,6 +54,7 @@ impl Display for Node {
       },
       Self::VariableDecl { var, expr } => write!(f, "{} {}", var, if expr.is_some() {format!("= {}", expr.as_ref().unwrap())} else {String::new()}),
       Self::VariableSet { var, expr } => write!(f, "{} = {}", var, expr),
+      Self::Return(e) => write!(f, "return {}", e),
       Self::Ignored => write!(f, "Ignored"),
       Self::Invalid => write!(f, "NULL"),
     }

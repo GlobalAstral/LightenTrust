@@ -53,22 +53,10 @@ impl Token {
       _ => None
     }
   }
-  pub fn is_identifier_and(&self, f: &dyn Fn(&str) -> bool) -> bool {
-    match &self.kind {
-      TokenKind::Identifier(s) if f(s) => true,
-      _ => false
-    }
-  }
   pub fn as_symbols(&self) -> Option<&str> {
     match &self.kind {
       TokenKind::Symbols(s) => Some(s),
       _ => None
-    }
-  }
-  pub fn is_symbols_of(&self, sym: &str) -> bool {
-    match &self.kind {
-      TokenKind::Symbols(s) if s == sym => true,
-      _ => false
     }
   }
   pub fn as_literal(&self) -> Option<Literal> {

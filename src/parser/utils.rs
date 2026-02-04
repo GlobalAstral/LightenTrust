@@ -24,14 +24,6 @@ impl<T> Processor<T> where T: Clone + Display + Default {
   pub fn peek(&self) -> T {
     self.input.get(self.peek).cloned().unwrap_or_default()
   }
-
-  pub fn peek_equal(&self, i: T) -> bool {
-    if self.has_peek() && (self.equals_criteria)(&self.peek(), &i) {
-      return true
-    }
-    false
-  }
-
   pub fn peek_back(&self) -> T {
     self.input.get(self.peek.saturating_sub(1)).cloned().unwrap_or_default()
   }

@@ -56,18 +56,21 @@ impl Literal {
       _ => None
     }
   }
+  #[allow(dead_code)]
   pub fn as_float(&self) -> Option<f64> {
     match self {
       Literal::Float(u) => Some(*u),
       _ => None
     }
   }
+  #[allow(dead_code)]
   pub fn as_char(&self) -> Option<u8> {
     match self {
       Literal::Char(u) => Some(*u),
       _ => None
     }
   }
+  #[allow(dead_code)]
   pub fn as_string(&self) -> Option<String> {
     match self {
       Literal::String(u) => Some(u.clone()),

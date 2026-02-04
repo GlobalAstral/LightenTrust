@@ -38,7 +38,7 @@ impl Tokenizer {
     }
     v
   }
-
+  #[allow(dead_code)]
   fn get_until(&mut self, find: char) -> String {
     let mut v: String = String::new();
     let mut flag = false;

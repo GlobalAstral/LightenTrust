@@ -22,6 +22,7 @@ pub struct Parser {
   functions: Vec<Fnc>,
   operators: Vec<Operator>,
   namespaces: Vec<String>,
+  return_type: Option<Type>
 }
 
 impl Parser {
@@ -35,6 +36,7 @@ impl Parser {
       functions: Vec::new(),
       operators: Vec::new(),
       namespaces: Vec::new(),
+      return_type: None
     }
   }
 
@@ -512,10 +514,12 @@ impl Parser {
       let body = if self.base.tryconsume(Token { kind: TokenKind::Semicolon, ..Default::default() }) {
         None
       } else {
+        self.return_type = Some(return_type.clone());
         let body = self.parse_one();
         if !matches!(body, Node::Scope(_)) {
           self.base.error("Scope for function body is mandatory")
         };
+        self.return_type = None;
         Some(Box::new(body))
       };
       
@@ -660,6 +664,16 @@ impl Parser {
       self.base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
 
       Node::VariableSet { var: var, expr }
+    } else if self.base.tryconsume(Token { kind: TokenKind::Return, ..Default::default() }) {
+      if self.return_type.is_none() {
+        self.base.error("Cannot return outside of function");
+      };
+      let expr = self.parse_expr();
+      if !expr.return_type.compatible_with(self.return_type.as_ref().unwrap()) {
+        self.base.error(&format!("Type {} cannot be returned as a {} type", expr.return_type, self.return_type.as_ref().unwrap()));
+      };
+      self.base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
+      Node::Return(expr)
     } else {
       Node::Expr(self.parse_expr())
     }

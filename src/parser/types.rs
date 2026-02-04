@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{constants::CONFIGS, parser::expressions::{ExprKind, Expression}};
+use crate::parser::expressions::Expression;
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct Variable {
