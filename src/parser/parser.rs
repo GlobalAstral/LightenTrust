@@ -20,7 +20,8 @@ pub struct Parser {
   globals: Vec<Variable>,
   scope_depth: usize,
   functions: Vec<Fnc>,
-  operators: Vec<Operator>
+  operators: Vec<Operator>,
+  namespaces: Vec<String>,
 }
 
 impl Parser {
@@ -32,14 +33,15 @@ impl Parser {
       locals: Vec::new(), 
       scope_depth: 0, 
       functions: Vec::new(),
-      operators: Vec::new()
+      operators: Vec::new(),
+      namespaces: Vec::new(),
     }
   }
 
   fn parse_var(&mut self, mutable: bool) -> Variable {
     if let Some(r#type) = self.parse_type() {
       if matches!(self.base.peek().kind, TokenKind::Identifier(_)) {
-        let name = self.base.consume().as_identifier().unwrap().to_string();
+        let name = self.parse_identifier();
         return Variable { r#type, name, id: generate_id(), mutable: mutable }
       } else {
         self.base.error("Expected Identifier for Variable");
@@ -47,6 +49,32 @@ impl Parser {
     } else {
       self.base.error("Expected Type for Variable");
     }
+  }
+
+  fn parse_identifier(&mut self) -> String {
+    let id = self.base.consume().as_identifier()
+      .unwrap_or_else(|| self.base.error("Expected Identifier")).to_string();
+    if self.namespaces.is_empty() {
+      return id;
+    }
+    let mut temp = self.namespaces.join("::");
+    temp.push_str("::");
+    temp.push_str(&id);
+    temp
+  }
+
+  fn require_identifier(&mut self) -> String {
+    let mut temp = self.base.consume().as_identifier()
+      .unwrap_or_else(|| self.base.error("Expected Identifier")).to_string();
+    while self.base.tryconsume(Token { kind: TokenKind::Dot, ..Default::default() }) {
+      temp.push_str("::");
+      temp.push_str(
+        self.base.consume().as_identifier()
+        .unwrap_or_else(|| self.base.error("Expected Identifier"))
+      );
+    }
+
+    temp
   }
 
   fn parse_type(&mut self) -> Option<Type> {
@@ -91,7 +119,7 @@ impl Parser {
       }
     
     } else if matches!(self.base.peek().kind, TokenKind::Identifier(_)) {
-      let id = self.base.consume().as_identifier().unwrap().to_string();
+      let id = self.require_identifier();
       
       if !self.types.contains_key(&id) {
         self.base.error(&format!("Type {} does not exist", id));
@@ -201,7 +229,7 @@ impl Parser {
       Expression { return_type: lit.get_type(), kind: ExprKind::Literal(lit)}
     
     } else if matches!(self.base.peek().kind, TokenKind::Identifier(_)) {
-      let name = self.base.consume().as_identifier().unwrap().to_string();
+      let name = self.require_identifier();
 
       if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
         let block = self.base.consume().as_paren_block().unwrap();
@@ -445,8 +473,7 @@ impl Parser {
       Node::Scope(vec)
     
     } else if self.base.tryconsume(Token { kind: TokenKind::Fnc, ..Default::default() }) {
-      let name = self.base.consume().as_identifier()
-        .unwrap_or_else(|| self.base.error("Expected Identifier for function name")).to_string();
+      let name = self.parse_identifier();
       let arguments: Vec<Variable> = if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
         let block = self.base.consume().as_paren_block().unwrap();
         let this: *mut Parser = self;
@@ -557,8 +584,7 @@ impl Parser {
       self.operators.push(op.clone());
       Node::OperatorDecl(op)
     } else if self.base.tryconsume(Token { kind: TokenKind::Typedef, ..Default::default() }) {
-      let name = self.base.consume().as_identifier()
-        .unwrap_or_else(|| self.base.error("Expected Identifier")).to_string();
+      let name = self.parse_identifier();
       if self.types.contains_key(&name) {
         self.base.error(&format!("Typedef {} already exists", &name));
       }
@@ -570,8 +596,7 @@ impl Parser {
       Node::Ignored
     } else if let Some(r#type) = self.parse_type() {
       let mutable = self.base.tryconsume(Token { kind: TokenKind::Mut, ..Default::default() });
-      let name = self.base.consume().as_identifier()
-        .unwrap_or_else(|| self.base.error("Expected Identifier")).to_string();
+      let name = self.parse_identifier();
       if self.locals.iter().find(|v| v.name == name).is_some() || self.globals.iter().find(|v| v.name == name).is_some() {
         self.base.error(&format!("Variable {} already exists", name));
       }
@@ -594,6 +619,23 @@ impl Parser {
       } else {
         self.base.error("Expected EQUALS or SEMICOLON");
       }
+    } else if self.base.tryconsume(Token { kind: TokenKind::Namespace, ..Default::default() }) {
+
+      let id = self.base.consume().as_identifier()
+        .unwrap_or_else(|| self.base.error("Expected Identifier")).to_string();
+
+      self.namespaces.push(id.clone());
+
+      let block = self.base.consume().as_curly_block()
+        .unwrap_or_else(|| self.base.error(&format!("Expected namespace {} content", id)));
+
+      let this: *mut Parser = self;
+      let temp = self.base.switch(block, |_| {
+        unsafe {(*this).parse()}
+      });
+      self.namespaces.pop();
+
+      Node::Packet(temp)
     } else {
       Node::Expr(self.parse_expr())
     }

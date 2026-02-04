@@ -20,6 +20,7 @@ impl Display for Fnc  {
 #[derive(Debug, PartialEq, PartialOrd, Clone, Default)]
 pub enum Node {
   Scope(Vec<Node>),
+  Packet(Vec<Node>),
   FncDecl(Fnc),
   OperatorDecl(Operator),
   VariableDecl {
@@ -37,6 +38,7 @@ impl Display for Node {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Self::Scope(s) => write!(f, "{{\n\t{}}}", s.iter().map(|n| format!("{}", n)).collect::<Vec<String>>().join("\n\t")),
+      Self::Packet(s) => write!(f, "[\n\t{}]", s.iter().map(|n| format!("{}", n)).collect::<Vec<String>>().join("\n\t")),
       Self::FncDecl(fnc) => write!(f, "fnc {}<{}>({}) {} {}", fnc.name, fnc.id, fnc.arguments.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", "), fnc.return_type, if let Some(p) = &fnc.body {format!("{}", p)} else {String::from(";")}),
       Self::Expr(e) => write!(f, "{}", e),
       Self::OperatorDecl(operator) => {
