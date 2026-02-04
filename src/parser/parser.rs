@@ -36,11 +36,11 @@ impl Parser {
     }
   }
 
-  fn parse_var(&mut self) -> Variable {
+  fn parse_var(&mut self, mutable: bool) -> Variable {
     if let Some(r#type) = self.parse_type() {
       if matches!(self.base.peek().kind, TokenKind::Identifier(_)) {
         let name = self.base.consume().as_identifier().unwrap().to_string();
-        return Variable { r#type, name, id: generate_id() }
+        return Variable { r#type, name, id: generate_id(), mutable: mutable }
       } else {
         self.base.error("Expected Identifier for Variable");
       }
@@ -108,7 +108,7 @@ impl Parser {
         
         self.base.switch(block, |base| {
           while base.has_peek() {
-            vars.push(unsafe { (*this).parse_var() });
+            vars.push(unsafe { (*this).parse_var(true) });
             base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
           }
         });
@@ -126,7 +126,7 @@ impl Parser {
         
         self.base.switch(block, |base| {
           while base.has_peek() {
-            vars.push(unsafe { (*this).parse_var() });
+            vars.push(unsafe { (*this).parse_var(true) });
             base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
           }
         });
@@ -459,7 +459,7 @@ impl Parser {
             if count > 0 {
               base.require(Token { kind: TokenKind::Comma, ..Default::default() });
             }
-            temp.push( unsafe { (*this).parse_var() } );
+            temp.push( unsafe { (*this).parse_var(false) } );
             count += 1;
           }
           
@@ -514,10 +514,10 @@ impl Parser {
       let block = self.base.consume().as_angle_block().unwrap();
       let this: *mut Parser = self;
       let (left, right, ret, prec) = self.base.switch(block, |base| {
-        let left = unsafe {(*this).parse_var()};
+        let left = unsafe {(*this).parse_var(false)};
         base.require(Token { kind: TokenKind::Comma, ..Default::default() });
         let right = if base.tryconsume(Token { kind: TokenKind::Dollar, ..Default::default() }) { None } 
-          else { Some(unsafe {(*this).parse_var()}) };
+          else { Some(unsafe {(*this).parse_var(false)}) };
         base.require(Token { kind: TokenKind::Comma, ..Default::default() });
         let return_type = unsafe {(*this).parse_type()}
           .unwrap_or_else(|| base.error("Expected Type"));
@@ -565,8 +565,35 @@ impl Parser {
       self.types.insert(name.clone(), None);
       let t = self.parse_type()
         .unwrap_or_else(|| self.base.error("Expected Type"));
+      self.base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
       self.types.insert(name, Some(t));
       Node::Ignored
+    } else if let Some(r#type) = self.parse_type() {
+      let mutable = self.base.tryconsume(Token { kind: TokenKind::Mut, ..Default::default() });
+      let name = self.base.consume().as_identifier()
+        .unwrap_or_else(|| self.base.error("Expected Identifier")).to_string();
+      if self.locals.iter().find(|v| v.name == name).is_some() || self.globals.iter().find(|v| v.name == name).is_some() {
+        self.base.error(&format!("Variable {} already exists", name));
+      }
+      let var = Variable {id: generate_id(), mutable: mutable, name: name, r#type: r#type};
+      if self.scope_depth > 0 {
+        self.locals.push(var.clone());
+      } else {
+        self.globals.push(var.clone());
+      };
+      if self.base.tryconsume(Token { kind: TokenKind::Semicolon, ..Default::default() }) {
+        Node::VariableDecl { var, expr: None }
+      } else if matches!(self.base.peek().kind, TokenKind::Symbols(s) if s == "=") {
+        self.base.consume();
+        let expr = self.parse_expr();
+        if !expr.return_type.compatible_with(&var.r#type) {
+          self.base.error(&format!("Type {} cannot be assigned to type {}", &expr.return_type, &var.r#type));
+        };
+        self.base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
+        Node::VariableDecl { var, expr: Some(expr) }
+      } else {
+        self.base.error("Expected EQUALS or SEMICOLON");
+      }
     } else {
       Node::Expr(self.parse_expr())
     }

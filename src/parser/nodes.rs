@@ -22,6 +22,10 @@ pub enum Node {
   Scope(Vec<Node>),
   FncDecl(Fnc),
   OperatorDecl(Operator),
+  VariableDecl {
+    var: Variable,
+    expr: Option<Expression>
+  },
   Expr(Expression),
 
   Ignored,
@@ -41,6 +45,7 @@ impl Display for Node {
         } else { String::new() };
         write!(f, "{} {} {} - {} -> {}", operator.left, operator.symbols, temp, operator.precedence, operator.return_type)
       },
+      Self::VariableDecl { var, expr } => write!(f, "{} {}", var, if expr.is_some() {format!("= {}", expr.as_ref().unwrap())} else {String::new()}),
       Self::Ignored => write!(f, "Ignored"),
       Self::Invalid => write!(f, "NULL"),
     }

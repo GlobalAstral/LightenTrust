@@ -9,7 +9,7 @@ pub enum TokenKind {
   AngleBlock(Vec<Token>),
   SquareBlock(Vec<Token>),
   Semicolon, Dot, Comma, Ampersand, Dollar,
-  Return, Asm, Typedef, If, Else, While, Do, For, Namespace, Fnc, Inline, Struct, Union, Enum, To, SizeOf, Operator,
+  Return, Asm, Typedef, If, Else, While, Do, For, Namespace, Fnc, Inline, Struct, Union, Enum, To, SizeOf, Operator, Mut,
   Identifier(String),
   Literal(String),
   Symbols(String),
@@ -144,6 +144,9 @@ impl Display for Token {
       },
       TokenKind::Do => {
         write!(f, "do")
+      },
+      TokenKind::Mut => {
+        write!(f, "mut")
       },
       TokenKind::For => {
         write!(f, "for")
