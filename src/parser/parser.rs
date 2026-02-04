@@ -532,6 +532,9 @@ impl Parser {
         self.locals.push(right.clone());
       }
       let body = self.parse_one();
+      if !matches!(body, Node::Scope(_)) {
+        self.base.error("Expected Scope")
+      }
 
       self.locals.drain(before..);
 
