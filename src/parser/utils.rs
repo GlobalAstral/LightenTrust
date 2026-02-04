@@ -2,7 +2,7 @@ use std::{fmt::Display, process::exit};
 
 pub struct Processor<T> where T: Clone + Display + Default {
   input: Vec<T>,
-  peek: usize,
+  pub peek: usize,
   equals_criteria: Box<dyn Fn(&T, &T) -> bool>,
   get_line: Box<dyn Fn(&T) -> usize>
 }

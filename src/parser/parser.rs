@@ -119,10 +119,11 @@ impl Parser {
       }
     
     } else if matches!(self.base.peek().kind, TokenKind::Identifier(_)) {
+      let revert = self.base.peek;
       let id = self.require_identifier();
-      
       if !self.types.contains_key(&id) {
-        self.base.error(&format!("Type {} does not exist", id));
+        self.base.peek = revert;
+        return None
       };
       
       let r#type = self.types.get(&id).cloned().unwrap();
@@ -426,6 +427,9 @@ impl Parser {
       Expression { return_type: var.r#type.clone(), kind: ExprKind::FieldAccess { base: Box::new(expr), field: var.clone() } }
     } else if self.base.tryconsume(Token { kind: TokenKind::To, ..Default::default() }) {
       let t = self.parse_type().unwrap_or_else(|| self.base.error("Expected Type"));
+      if !expr.return_type.compatible_with(&t) {
+        self.base.error(&format!("Type {} cannot be casted to a {} type", expr, t));
+      }
       Expression { kind: ExprKind::Cast { base: Box::new(expr), into: t.clone() }, return_type: t }
     } else if matches!(self.base.peek().kind, TokenKind::Symbols(_)) {
       let left = expr;
@@ -636,6 +640,26 @@ impl Parser {
       self.namespaces.pop();
 
       Node::Packet(temp)
+    } else if matches!(self.base.peek().kind, TokenKind::Identifier(_)) {
+      let id = self.require_identifier();
+      
+      let var = 
+        self.locals
+        .iter()
+        .find(|v| v.name == id)
+        .or_else(|| self.globals.iter().find(|v| v.name == id))
+        .unwrap_or_else(|| self.base.error(&format!("Variable {} does not exist", id)))
+        .clone();
+      
+      self.base.require(Token { kind: TokenKind::Symbols("=".to_string()), ..Default::default() });
+      
+      let expr = self.parse_expr();
+      if !expr.return_type.compatible_with(&var.r#type) {
+        self.base.error(&format!("Type {} cannot be set into a type {}", expr.return_type, var.r#type))
+      };
+      self.base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
+
+      Node::VariableSet { var: var, expr }
     } else {
       Node::Expr(self.parse_expr())
     }
