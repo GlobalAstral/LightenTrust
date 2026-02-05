@@ -33,6 +33,16 @@ pub enum Node {
   },
   Return(Expression),
   Assembly(Vec<AssemblyChunk>),
+  If(Expression, Box<Node>, Option<Box<Node>>),
+  While(Expression, Box<Node>),
+  DoWhile(Expression, Box<Node>),
+  For {
+    var: Variable,
+    init: Expression,
+    cond: Expression,
+    incr: Box<Node>,
+    body: Box<Node>
+  },
   Expr(Expression),
 
   Ignored,
@@ -56,6 +66,10 @@ impl Display for Node {
       Self::VariableDecl { var, expr } => write!(f, "{} {}", var, if expr.is_some() {format!("= {}", expr.as_ref().unwrap())} else {String::new()}),
       Self::VariableSet { var, expr } => write!(f, "{} = {}", var, expr),
       Self::Return(e) => write!(f, "return {}", e),
+      Self::If(c, b, e) => write!(f, "if {} {} {}", c, b, if let Some(e) = e {format!("else {}", e)} else {String::new()}),
+      Self::While(c, b) => write!(f, "while {} {}", c, b),
+      Self::DoWhile(c, b) => write!(f, "do {} while {}", b, c),
+      Self::For { var, init, cond, incr, body } => write!(f, "for ({} = {}; {}; {}) {}", var, init, cond, incr, body),
       Self::Ignored => write!(f, "Ignored"),
       Self::Invalid => write!(f, "NULL"),
       Self::Assembly(code) => write!(f, "{:?}", code),

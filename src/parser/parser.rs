@@ -686,6 +686,45 @@ impl Parser {
       let asm: Vec<AssemblyChunk> = asm_parser.parse(&self.locals, &self.globals)
         .unwrap_or_else(|e| self.base.error(&format!("{}", e))); 
       Node::Assembly(asm)
+    } else if self.base.tryconsume(Token { kind: TokenKind::If, ..Default::default() }) {
+      let expr = self.parse_expr();
+      let body = self.parse_one();
+      let else_body = if self.base.tryconsume(Token { kind: TokenKind::Else, ..Default::default() }) {
+        Some(Box::new(self.parse_one()))
+      } else {None};
+      Node::If(expr, Box::new(body), else_body)
+    } else if self.base.tryconsume(Token { kind: TokenKind::While, ..Default::default() }) {
+      let expr = self.parse_expr();
+      let body = self.parse_one();
+      Node::While(expr, Box::new(body))
+    } else if self.base.tryconsume(Token { kind: TokenKind::Do, ..Default::default() }) {
+      let body = self.parse_one();
+      self.base.require(Token { kind: TokenKind::While, ..Default::default() });
+      let expr = self.parse_expr();
+      self.base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
+      Node::DoWhile(expr, Box::new(body))
+    } else if self.base.tryconsume(Token { kind: TokenKind::For, ..Default::default() }) {
+      let block = self.base.consume().as_paren_block()
+        .unwrap_or_else(|| self.base.error("Expected for ( ... ) block"));
+      
+      let this: *mut Parser = self;
+      let before = self.locals.len();
+      
+      let (var, init, cond, incr) = self.base.switch(block, |base| {
+        let var = unsafe { (*this).parse_var(true) };
+        base.require(Token { kind: TokenKind::Symbols(String::from("=")), ..Default::default() });
+        let expr = unsafe { (*this).parse_expr() };
+        self.locals.push(var.clone());
+        base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
+        let cond = unsafe { (*this).parse_expr() };
+        base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
+        let incr = unsafe { (*this).parse_one() };
+        (var, expr, cond, incr)
+      });
+      
+      let body = self.parse_one();
+      self.locals.drain(before..);
+      Node::For { var, init, cond, incr: Box::new(incr), body: Box::new(body) }
     } else {
       Node::Expr(self.parse_expr())
     }
