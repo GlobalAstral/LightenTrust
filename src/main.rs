@@ -8,6 +8,10 @@ mod constants;
 mod tokens;
 mod parser;
 
+//* THINK ABOUT EXTERN FUNCTIONS TO MAKE COMPILATION FOLLOW A CONVENTION, Lightentrust, or C, or linux C...
+//* extern "C" printf(&char fmt, ...) int;
+//* ALSO THINK ABOUT VARIADICS
+
 fn main() -> Result<(), Box<dyn Error>> {
   let args: Vec<String> = env::args().collect();
 
