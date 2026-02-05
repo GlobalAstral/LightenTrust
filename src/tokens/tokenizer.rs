@@ -135,6 +135,7 @@ impl Tokenizer {
         ',' => Some(TokenKind::Comma),
         '&' => Some(TokenKind::Ampersand),
         '$' => Some(TokenKind::Dollar),
+        '#' => Some(TokenKind::Hash),
         '\'' => {
           if let Some(ch) = self.input.next() {
             let parsed = if ch == '\\' {
@@ -206,6 +207,12 @@ impl Tokenizer {
               "break" => Some(TokenKind::Break),
               "continue" => Some(TokenKind::Continue),
               "signed" => Some(TokenKind::Signed),
+              "include" => Some(TokenKind::Include),
+              "define" => Some(TokenKind::Define),
+              "macro" => Some(TokenKind::Macro),
+              "getconfig" => Some(TokenKind::GetConfig),
+              "ifdef" => Some(TokenKind::Ifdef),
+              "ifndef" => Some(TokenKind::Ifndef),
               s => Some(TokenKind::Identifier(s.to_string()))
             }
           } else if c.is_digit(10) {

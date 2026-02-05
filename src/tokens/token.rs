@@ -8,8 +8,9 @@ pub enum TokenKind {
   CurlyBlock(Vec<Token>),
   AngleBlock(Vec<Token>),
   SquareBlock(Vec<Token>),
-  Semicolon, Dot, Comma, Ampersand, Dollar,
+  Semicolon, Dot, Comma, Ampersand, Dollar, Hash,
   Return, Asm, Typedef, If, Else, While, Do, For, Namespace, Fnc, Inline, Struct, Union, Enum, To, SizeOf, Operator, Mut, Break, Continue, Signed,
+  Include, Define, Macro, GetConfig, Ifdef, Ifndef,
   Identifier(String),
   Literal(String),
   Symbols(String),
@@ -91,96 +92,43 @@ impl Display for Token {
         let temp: Vec<String> = block.iter().map(|t| format!("{}", t)).collect();
         write!(f, "[{}]", temp.join(", "))
       },
-      TokenKind::Semicolon => {
-        write!(f, ";")
-      },
-      TokenKind::Dot => {
-        write!(f, "DOT")
-      },
-      TokenKind::Comma => {
-        write!(f, "COMMA")
-      },
-      TokenKind::Ampersand => {
-        write!(f, "AMPERSAND")
-      },
-      TokenKind::Dollar => {
-        write!(f, "DOLLAR")
-      },
-      TokenKind::Return => {
-        write!(f, "return")
-      },
-      TokenKind::Signed => {
-        write!(f, "unsigned")
-      },
-      TokenKind::Break => {
-        write!(f, "break")
-      },
-      TokenKind::Continue => {
-        write!(f, "continue")
-      },
-      TokenKind::SizeOf => {
-        write!(f, "sizeof")
-      },
-      TokenKind::Operator => {
-        write!(f, "operator")
-      },
-      TokenKind::Asm=> {
-        write!(f, "asm")
-      },
-      TokenKind::Typedef => {
-        write!(f, "typedef")
-      },
-      TokenKind::If => {
-        write!(f, "if")
-      },
-      TokenKind::Else => {
-        write!(f, "else")
-      },
-      TokenKind::While => {
-        write!(f, "while")
-      },
-      TokenKind::Do => {
-        write!(f, "do")
-      },
-      TokenKind::Mut => {
-        write!(f, "mut")
-      },
-      TokenKind::For => {
-        write!(f, "for")
-      },
-      TokenKind::Namespace => {
-        write!(f, "namespace")
-      },
-      TokenKind::Fnc => {
-        write!(f, "fnc")
-      },
-      TokenKind::Inline => {
-        write!(f, "inline")
-      },
-      TokenKind::Struct => {
-        write!(f, "struct")
-      },
-      TokenKind::Union => {
-        write!(f, "union")
-      },
-      TokenKind::Enum => {
-        write!(f, "enum")
-      },
-      TokenKind::To => {
-        write!(f, "to")
-      },
-      TokenKind::Identifier(s) => {
-        write!(f, "{}", s)
-      },
-      TokenKind::Literal(lit) => {
-        write!(f, "{}", lit)
-      },
-      TokenKind::Symbols(s) => {
-        write!(f, "{}", s)
-      },
-      TokenKind::Invalid => {
-        write!(f, "NULL")
-      }
+      TokenKind::Semicolon => write!(f, ";"),
+      TokenKind::Dot => write!(f, "DOT"),
+      TokenKind::Comma => write!(f, "COMMA"),
+      TokenKind::Ampersand => write!(f, "AMPERSAND"),
+      TokenKind::Dollar => write!(f, "DOLLAR"),
+      TokenKind::Hash => write!(f, "HASH"),
+      TokenKind::Return => write!(f, "return"),
+      TokenKind::Signed => write!(f, "unsigned"),
+      TokenKind::Break => write!(f, "break"),
+      TokenKind::Continue => write!(f, "continue"),
+      TokenKind::SizeOf => write!(f, "sizeof"),
+      TokenKind::Operator => write!(f, "operator"),
+      TokenKind::Asm=> write!(f, "asm"),
+      TokenKind::Typedef => write!(f, "typedef"),
+      TokenKind::If => write!(f, "if"),
+      TokenKind::Else => write!(f, "else"),
+      TokenKind::While => write!(f, "while"),
+      TokenKind::Do => write!(f, "do"),
+      TokenKind::Mut => write!(f, "mut"),
+      TokenKind::For => write!(f, "for"),
+      TokenKind::Namespace => write!(f, "namespace"),
+      TokenKind::Fnc => write!(f, "fnc"),
+      TokenKind::Inline => write!(f, "inline"),
+      TokenKind::Struct => write!(f, "struct"),
+      TokenKind::Union => write!(f, "union"),
+      TokenKind::Enum => write!(f, "enum"),
+      TokenKind::To => write!(f, "to"),
+      TokenKind::Identifier(s) => write!(f, "{}", s),
+      TokenKind::Literal(lit) => write!(f, "{}", lit),
+      TokenKind::Symbols(s) => write!(f, "{}", s),
+      TokenKind::Include => write!(f, "include"),
+      TokenKind::Define => write!(f, "define"),
+      TokenKind::Macro => write!(f, "macro"),
+      TokenKind::GetConfig => write!(f, "getconfig"),
+      TokenKind::Ifdef => write!(f, "ifdef"),
+      TokenKind::Ifndef => write!(f, "ifndef"),
+      TokenKind::Invalid => write!(f, "NULL")
     }?;
     write!(f, "<{}>", self.line)
   }

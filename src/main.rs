@@ -2,7 +2,7 @@ use std::{env, error::Error, fs::{self, OpenOptions}, io::Write, path::PathBuf};
 
 use toml_edit::Document;
 
-use crate::{constants::{CONFIGS, Configs, DEFAULT_CONFIG, EXTENSION}, parser::parser::Parser, tokens::tokenizer::Tokenizer};
+use crate::{constants::{CONFIGS, Configs, DEFAULT_CONFIG, EXTENSION}, parser::parser::Parser, tokens::{preprocessor::Preprocessor, tokenizer::Tokenizer}};
 
 mod constants;
 mod tokens;
@@ -59,6 +59,14 @@ fn main() -> Result<(), Box<dyn Error>> {
   let mut tokenizer: Tokenizer = Tokenizer::new(&content);
   let tokens = tokenizer.tokenize();
   println!("TOKENS");
+  tokens.iter().for_each(|t| {
+    println!("{}", t)
+  });
+
+  let mut preprocessor: Preprocessor = Preprocessor::new(tokens.clone());
+  let tokens = preprocessor.preprocess();
+
+  println!("PROCESSED TOKENS");
   tokens.iter().for_each(|t| {
     println!("{}", t)
   });
