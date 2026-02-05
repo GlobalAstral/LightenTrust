@@ -656,6 +656,10 @@ impl Parser {
         .or_else(|| self.globals.iter().find(|v| v.name == id))
         .unwrap_or_else(|| self.base.error(&format!("Variable {} does not exist", id)))
         .clone();
+
+      if !var.mutable {
+        self.base.error(&format!("Variable {} is not mutable", id));
+      }
       
       self.base.require(Token { kind: TokenKind::Symbols("=".to_string()), ..Default::default() });
       
