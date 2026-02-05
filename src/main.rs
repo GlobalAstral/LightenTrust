@@ -55,7 +55,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
   }
 
-  //* return_stmt, 
   //* asm_code, cast_decl, if_stmt, while_stmt, do_while_stmt, for_stmt,
 
   let content = fs::read_to_string(input_file)?;
