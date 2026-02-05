@@ -19,6 +19,7 @@ pub struct Parser {
   locals: Vec<Variable>,
   globals: Vec<Variable>,
   scope_depth: usize,
+  loop_depth: usize,
   functions: Vec<Fnc>,
   operators: Vec<Operator>,
   namespaces: Vec<String>,
@@ -33,6 +34,7 @@ impl Parser {
       globals: Vec::new(), 
       locals: Vec::new(), 
       scope_depth: 0, 
+      loop_depth: 0,
       functions: Vec::new(),
       operators: Vec::new(),
       namespaces: Vec::new(),
@@ -695,10 +697,14 @@ impl Parser {
       Node::If(expr, Box::new(body), else_body)
     } else if self.base.tryconsume(Token { kind: TokenKind::While, ..Default::default() }) {
       let expr = self.parse_expr();
+      self.loop_depth += 1;
       let body = self.parse_one();
+      self.loop_depth -= 1;
       Node::While(expr, Box::new(body))
     } else if self.base.tryconsume(Token { kind: TokenKind::Do, ..Default::default() }) {
+      self.loop_depth += 1;
       let body = self.parse_one();
+      self.loop_depth -= 1;
       self.base.require(Token { kind: TokenKind::While, ..Default::default() });
       let expr = self.parse_expr();
       self.base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
@@ -721,10 +727,21 @@ impl Parser {
         let incr = unsafe { (*this).parse_one() };
         (var, expr, cond, incr)
       });
-      
+      self.loop_depth += 1;
       let body = self.parse_one();
+      self.loop_depth -= 1;
       self.locals.drain(before..);
       Node::For { var, init, cond, incr: Box::new(incr), body: Box::new(body) }
+    } else if self.base.tryconsume(Token { kind: TokenKind::Break, ..Default::default() }) {
+      if self.loop_depth > 0 {
+        return Node::Break;
+      }
+      self.base.error("Cannot break outside of a loop");
+    } else if self.base.tryconsume(Token { kind: TokenKind::Continue, ..Default::default() }) {
+      if self.loop_depth > 0 {
+        return Node::Continue;
+      }
+      self.base.error("Cannot continue outside of a loop");
     } else {
       Node::Expr(self.parse_expr())
     }

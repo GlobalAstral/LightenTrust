@@ -43,6 +43,8 @@ pub enum Node {
     incr: Box<Node>,
     body: Box<Node>
   },
+  Continue,
+  Break,
   Expr(Expression),
 
   Ignored,
@@ -73,6 +75,8 @@ impl Display for Node {
       Self::Ignored => write!(f, "Ignored"),
       Self::Invalid => write!(f, "NULL"),
       Self::Assembly(code) => write!(f, "{:?}", code),
+      Self::Continue => write!(f, "continue"),
+      Self::Break => write!(f, "break"),
     }
   }
 }

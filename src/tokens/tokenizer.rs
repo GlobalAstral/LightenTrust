@@ -193,6 +193,8 @@ impl Tokenizer {
               "sizeof" => Some(TokenKind::SizeOf),
               "operator" => Some(TokenKind::Operator),
               "mut" => Some(TokenKind::Mut),
+              "break" => Some(TokenKind::Break),
+              "continue" => Some(TokenKind::Continue),
               s => Some(TokenKind::Identifier(s.to_string()))
             }
           } else if c.is_digit(10) {
