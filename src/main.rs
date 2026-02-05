@@ -7,7 +7,7 @@ use crate::{constants::{CONFIGS, Configs, DEFAULT_CONFIG, EXTENSION}, parser::pa
 mod constants;
 mod tokens;
 mod parser;
-
+//! THIS IS A TEST
 fn main() -> Result<(), Box<dyn Error>> {
   let args: Vec<String> = env::args().collect();
 
