@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::parser::{expressions::{Expression, Operator}, types::{Type, Variable}};
+use crate::parser::{assembly::{AssemblyChunk}, expressions::{Expression, Operator}, types::{Type, Variable}};
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct Fnc {
@@ -32,6 +32,7 @@ pub enum Node {
     expr: Expression
   },
   Return(Expression),
+  Assembly(Vec<AssemblyChunk>),
   Expr(Expression),
 
   Ignored,
@@ -57,6 +58,7 @@ impl Display for Node {
       Self::Return(e) => write!(f, "return {}", e),
       Self::Ignored => write!(f, "Ignored"),
       Self::Invalid => write!(f, "NULL"),
+      Self::Assembly(code) => write!(f, "{:?}", code),
     }
   }
 }

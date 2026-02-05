@@ -1,7 +1,7 @@
 
 use std::collections::HashMap;
 
-use crate::{constants::CONFIGS, parser::{expressions::{ExprKind, Expression, Operator}, nodes::{Fnc, Node}, types::{MemoryKind, Type, Variable}, utils::Processor}, tokens::token::{Token, TokenKind}};
+use crate::{constants::CONFIGS, parser::{assembly::{AssemblyChunk, AssemblyParseError, AssemblyParser}, expressions::{ExprKind, Expression, Operator}, nodes::{Fnc, Node}, types::{MemoryKind, Type, Variable}, utils::Processor}, tokens::token::{Token, TokenKind}};
 
 static mut CURRENT_ID: u64 = 0;
 
@@ -674,6 +674,18 @@ impl Parser {
       };
       self.base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
       Node::Return(expr)
+    } else if self.base.tryconsume(Token { kind: TokenKind::Asm, ..Default::default() }) {
+      let block = self.base.consume().as_curly_block()
+        .unwrap_or_else(|| self.base.error("Expected { ... } block"));
+      let asm_code: String = block.iter().map(
+        |t| t.as_literal().and_then(|l| l.as_string())
+          .unwrap_or_else(|| self.base.error("Expected String literal"))
+      ).collect::<Vec<String>>().join("\n");
+
+      let mut asm_parser: AssemblyParser = AssemblyParser::new(asm_code);
+      let asm: Vec<AssemblyChunk> = asm_parser.parse(&self.locals, &self.globals)
+        .unwrap_or_else(|e| self.base.error(&format!("{}", e))); 
+      Node::Assembly(asm)
     } else {
       Node::Expr(self.parse_expr())
     }
