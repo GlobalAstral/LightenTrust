@@ -31,10 +31,4 @@ pub fn get_configs() -> Configs {
   CONFIGS.read().expect("Cannot read configs").clone()
 }
 
-pub static DEFAULT_CONFIG: &str =
-  "
-  ptr_size = 8\n
-  float_lit = 4\n
-  int_lit = 4\n
-  char_lit = 1\n
-  ";
+pub static DEFAULT_CONFIG: &str = "ptr_size = 8\nfloat_lit = 4\nint_lit = 4\nchar_lit = 1\n";
