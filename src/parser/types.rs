@@ -114,6 +114,15 @@ impl Type {
       return false;
     };
 
-    k1 == k2 && s1 <= s2
+    let kinds_compatible = 
+      if *k1 == MemoryKind::Integer && *k2 == MemoryKind::Unsigned {
+        true
+      } else if *k2 == MemoryKind::Integer && *k1 == MemoryKind::Unsigned {
+        true
+      } else {
+        k1 == k2
+      };
+
+    kinds_compatible && s1 <= s2
   }
 }
