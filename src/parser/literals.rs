@@ -43,10 +43,10 @@ impl Literal {
 
   pub fn get_type(&self) -> Type {
     match self {
-      Self::Integer(_) => Type::Memory { size: get_configs().intl_size, kind: MemoryKind::Integer },
+      Self::Integer(_) => Type::Memory { size: get_configs().intl_size, kind: MemoryKind::Unsigned },
       Self::Float(_) => Type::Memory { size: get_configs().floatl_size, kind: MemoryKind::Float },
-      Self::String(s) => Type::Memory { size: (s.len() as u64) * get_configs().charl_size, kind: MemoryKind::Integer },
-      Self::Char(_) => Type::Memory { size: get_configs().charl_size, kind: MemoryKind::Integer }
+      Self::String(s) => Type::Memory { size: (s.len() as u64) * get_configs().charl_size, kind: MemoryKind::Unsigned },
+      Self::Char(_) => Type::Memory { size: get_configs().charl_size, kind: MemoryKind::Unsigned }
     }
   }
 

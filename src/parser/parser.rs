@@ -94,11 +94,13 @@ impl Parser {
         let kind = if let Some(t) = block.get(1) {
           if t.kind == TokenKind::Dollar {
             MemoryKind::Float
-          } else {
+          } else if t.kind == TokenKind::Signed {
             MemoryKind::Integer
+          } else {
+            self.base.error("Unexpected MemoryKind specifier")
           }
         } else {
-          MemoryKind::Integer
+          MemoryKind::Unsigned
         };
         Some(Type::Memory { size, kind })
       
@@ -210,7 +212,7 @@ impl Parser {
       let temp = op.return_type.clone();
       Expression { kind: ExprKind::Unary { expr: Box::new(expr), operator:  op.clone()}, return_type: temp }
     } else if self.base.tryconsume(Token { kind: TokenKind::SizeOf, ..Default::default() }) {
-      Expression { kind: ExprKind::SizeOf(Box::new(self.parse_expr())), return_type: Type::Memory { size: CONFIGS.read().unwrap().ptr_size, kind: MemoryKind::Integer } }
+      Expression { kind: ExprKind::SizeOf(Box::new(self.parse_expr())), return_type: Type::Memory { size: CONFIGS.read().unwrap().ptr_size, kind: MemoryKind::Unsigned } }
     } else if self.base.tryconsume(Token { kind: TokenKind::Ampersand, ..Default::default() }) {
       let expr = self.parse_expr();
       Expression { return_type: Type::Pointer { r#type: Box::new(expr.return_type.clone()) }, kind: ExprKind::Reference(Box::new(expr)) }

@@ -18,6 +18,7 @@ impl Display for Variable  {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum MemoryKind {
+  Unsigned,
   Integer,
   Float
 }
@@ -25,6 +26,7 @@ pub enum MemoryKind {
 impl Display for MemoryKind {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
+      Self::Unsigned => write!(f, "ui"),
       Self::Integer => write!(f, "i"),
       Self::Float => write!(f, "f"),
     }

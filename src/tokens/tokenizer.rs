@@ -195,6 +195,7 @@ impl Tokenizer {
               "mut" => Some(TokenKind::Mut),
               "break" => Some(TokenKind::Break),
               "continue" => Some(TokenKind::Continue),
+              "signed" => Some(TokenKind::Signed),
               s => Some(TokenKind::Identifier(s.to_string()))
             }
           } else if c.is_digit(10) {
