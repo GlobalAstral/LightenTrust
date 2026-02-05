@@ -128,7 +128,7 @@ impl Display for Token {
         write!(f, "asm")
       },
       TokenKind::Typedef => {
-        write!(f, "type")
+        write!(f, "typedef")
       },
       TokenKind::If => {
         write!(f, "if")

@@ -24,6 +24,11 @@ impl Tokenizer {
     let mut v: Vec<Token> = Vec::new();
     let mut flag = false;
     while let Some(p) = self.input.peek() {
+      if *p == '\n' {
+        self.line += 1;
+        self.input.next();
+        continue;
+      }
       if *p == find {
         flag = true;
         self.input.next();
@@ -60,42 +65,42 @@ impl Tokenizer {
     match self.input.next() {
       Some('\\') => {
         let next = self.input.next().unwrap_or_else(|| {
-        self.error("Unexpected end of input after '\\'");
-      });
-      match next {
-        'n' => '\n',
-        'r' => '\r',
-        't' => '\t',
-        '\\' => '\\',
-        '\'' => '\'',
-        '"' => '"',
-        '0' => '\0',
-        'x' => {
-          let hi = self.input.next()
-            .and_then(|c| c.to_digit(16))
-            .unwrap_or_else(|| self.error("Invalid hex escape"));
-          let lo = self.input.next()
-            .and_then(|c| c.to_digit(16))
-            .unwrap_or_else(|| self.error("Invalid hex escape"));
-          std::char::from_u32((hi << 4 | lo) as u32)
-            .unwrap_or_else(|| self.error("Invalid hex value"))
-        }
-        'u' => {
-          if self.input.next() != Some('{') {
-            self.error("Expected '{' after \\u");
+          self.error("Unexpected end of input after '\\'");
+        });
+        match next {
+          'n' => '\n',
+          'r' => '\r',
+          't' => '\t',
+          '\\' => '\\',
+          '\'' => '\'',
+          '"' => '"',
+          '0' => '\0',
+          'x' => {
+            let hi = self.input.next()
+              .and_then(|c| c.to_digit(16))
+              .unwrap_or_else(|| self.error("Invalid hex escape"));
+            let lo = self.input.next()
+              .and_then(|c| c.to_digit(16))
+              .unwrap_or_else(|| self.error("Invalid hex escape"));
+            std::char::from_u32((hi << 4 | lo) as u32)
+              .unwrap_or_else(|| self.error("Invalid hex value"))
           }
-          let mut codepoint = String::new();
-          while let Some(c) = self.input.next() {
-            if c == '}' { break; }
-            codepoint.push(c);
-          }
-          if codepoint.is_empty() {
-            self.error("Empty unicode escape");
-          }
-          let val = u32::from_str_radix(&codepoint, 16)
-            .unwrap_or_else(|_| self.error("Invalid unicode escape"));
-          std::char::from_u32(val)
-            .unwrap_or_else(|| self.error("Invalid unicode codepoint"))
+          'u' => {
+            if self.input.next() != Some('{') {
+              self.error("Expected '{' after \\u");
+            }
+            let mut codepoint = String::new();
+            while let Some(c) = self.input.next() {
+              if c == '}' { break; }
+              codepoint.push(c);
+            }
+            if codepoint.is_empty() {
+              self.error("Empty unicode escape");
+            }
+            let val = u32::from_str_radix(&codepoint, 16)
+              .unwrap_or_else(|_| self.error("Invalid unicode escape"));
+            std::char::from_u32(val)
+              .unwrap_or_else(|| self.error("Invalid unicode codepoint"))
           }
           other => other,
         }
@@ -148,6 +153,11 @@ impl Tokenizer {
         '"' => {
           let mut buf = String::new();
           while let Some(&ch) = self.input.peek() {
+            if ch == '\n' {
+              self.line += 1;
+              self.input.next();
+              continue;
+            }
             if ch == '"' { self.input.next(); break; }
             buf.push(self.parse_escaped_char());
           }
