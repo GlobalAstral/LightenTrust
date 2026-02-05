@@ -6,7 +6,9 @@ use crate::tokens::token::{Token, TokenKind};
 pub struct Tokenizer {
   input: Peekable<std::vec::IntoIter<char>>,
   line: usize,
-  output: Vec<Token>
+  output: Vec<Token>,
+  comment: bool,
+  multicomment: bool,
 }
 
 impl Tokenizer {
@@ -17,19 +19,17 @@ impl Tokenizer {
 
   pub fn new(i: &str) -> Self {
     let temp: Peekable<std::vec::IntoIter<char>> = i.chars().collect::<Vec<_>>().into_iter().peekable();
-    Self { input: temp, line: 1, output: Vec::new() }
+    Self { input: temp, line: 1, output: Vec::new(), comment: false, multicomment: false }
   }
 
   fn tokenize_until(&mut self, find: char) -> Vec<Token> {
     let mut v: Vec<Token> = Vec::new();
     let mut flag = false;
-    while let Some(p) = self.input.peek() {
-      if *p == '\n' {
-        self.line += 1;
-        self.input.next();
+    while let Some(&p) = self.input.peek() {
+      if self.process_comments() {
         continue;
       }
-      if *p == find {
+      if p == find {
         flag = true;
         self.input.next();
         break;
@@ -154,9 +154,7 @@ impl Tokenizer {
         '"' => {
           let mut buf = String::new();
           while let Some(&ch) = self.input.peek() {
-            if ch == '\n' {
-              self.line += 1;
-              self.input.next();
+            if self.process_comments() {
               continue;
             }
             if ch == '"' { self.input.next(); break; }
@@ -250,11 +248,49 @@ impl Tokenizer {
     }
   }
 
-  pub fn tokenize(&mut self) -> &Vec<Token> {
-    while let Some(ch) = self.input.peek() {
-      if *ch == '\n' {
+  fn process_comments(&mut self) -> bool {
+    if let Some(&ch) = self.input.peek() {
+      if ch == '\n' {
         self.line += 1;
         self.input.next();
+        self.comment = false;
+        return true;
+      }
+
+      if ch == '/' {
+        self.input.next();
+        if self.input.next_if_eq(&'/').is_some() {
+          self.comment = true;
+          return true;
+        } else if self.input.next_if_eq(&'*').is_some() {
+          self.multicomment = true;
+          return true;
+        }
+        self.input.next_back();
+        return false;
+      }
+
+      if ch == '*' {
+        self.input.next();
+        if self.input.next_if_eq(&'/').is_some() {
+          self.multicomment = false;
+          return true
+        }
+        self.input.next_back();
+        return false;
+      }
+
+      if self.comment || self.multicomment {
+        self.input.next();
+        return true;
+      }
+    }
+    false
+  }
+
+  pub fn tokenize(&mut self) -> &Vec<Token> {
+    while let Some(&ch) = self.input.peek() {
+      if self.process_comments() {
         continue;
       }
       if ch.is_whitespace() {
