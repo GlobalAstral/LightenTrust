@@ -55,8 +55,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
   }
 
-  let content = fs::read_to_string(input_file)?;
-  let mut tokenizer: Tokenizer = Tokenizer::new(&content);
+  let content = fs::read_to_string(&input_file)?;
+  let mut tokenizer: Tokenizer = Tokenizer::new(&content, input_file);
   let tokens = tokenizer.tokenize();
   println!("TOKENS");
   tokens.iter().for_each(|t| {

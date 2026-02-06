@@ -29,7 +29,7 @@ pub struct Parser {
 impl Parser {
   pub fn new(i: Vec<Token>) -> Self {
     Self {
-      base: Processor::new(i, Box::new(|a, b| a.kind == b.kind), Box::new(|s| s.line)), 
+      base: Processor::new(i, Box::new(|a, b| a.kind == b.kind), Box::new(|s| s.line), Box::new(|s| s.file.clone())), 
       types: HashMap::new(), 
       globals: Vec::new(), 
       locals: Vec::new(), 

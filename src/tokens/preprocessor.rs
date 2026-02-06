@@ -17,7 +17,7 @@ pub struct Preprocessor {
 impl Preprocessor {
   pub fn new(i: Vec<Token>) -> Self {
     Self {
-      base: Processor::new(i, Box::new(|a, b| a.kind == b.kind), Box::new(|a| a.line)),
+      base: Processor::new(i, Box::new(|a, b| a.kind == b.kind), Box::new(|a| a.line), Box::new(|a| a.file.clone())),
       definitions: HashMap::new(),
       macros: HashMap::new()
     }
@@ -25,13 +25,13 @@ impl Preprocessor {
 
   pub fn from(i: Vec<Token>, other: &Preprocessor) -> Self {
     Self {
-      base: Processor::new(i, Box::new(|a, b| a.kind == b.kind), Box::new(|a| a.line)),
+      base: Processor::new(i, Box::new(|a, b| a.kind == b.kind), Box::new(|a| a.line), Box::new(|a| a.file.clone())),
       definitions: other.definitions.clone(), 
       macros: other.macros.clone()
     }
   }
 
-  pub fn preprocess_id(&mut self, id: &str, line: usize, output: &mut Vec<Token>) {
+  pub fn preprocess_id(&mut self, id: &str, line: usize, file: PathBuf, output: &mut Vec<Token>) {
     if self.definitions.contains_key(id) {
       let mut def = self.definitions.get(id).unwrap().clone();
       output.append(&mut def);
@@ -71,7 +71,7 @@ impl Preprocessor {
       self.definitions = restore;
       output.append(&mut temp);
     } else {
-      output.push(Token { kind: TokenKind::Identifier(id.to_string()), line });
+      output.push(Token { kind: TokenKind::Identifier(id.to_string()), line, file });
     }
   }
 
@@ -82,9 +82,9 @@ impl Preprocessor {
       if !path.exists() {
         self.base.error(&format!("File {} does not exist", path.display()))
       }
-      let content = fs::read_to_string(path)
+      let content = fs::read_to_string(&path)
         .unwrap_or_else(|e| self.base.error(&format!("{}", e)));
-      let mut tokenizer: Tokenizer = Tokenizer::new(&content);
+      let mut tokenizer: Tokenizer = Tokenizer::new(&content, path);
       let tokens = tokenizer.tokenize().clone();
       let mut preprocessor: Preprocessor = Preprocessor::from(tokens, &self);
       let mut result = preprocessor.preprocess();
@@ -159,7 +159,7 @@ impl Preprocessor {
     }
   }
 
-  pub fn preprocess_one(&mut self, line: usize, output: &mut Vec<Token>) {
+  pub fn preprocess_one(&mut self, line: usize, file: PathBuf, output: &mut Vec<Token>) {
     if !matches!(self.base.peek().kind, TokenKind::Hash | TokenKind::Identifier(_)) {
       output.push(self.base.consume());
       return;
@@ -169,7 +169,7 @@ impl Preprocessor {
       self.preprocess_dir(output);
     } else {
       let temp = self.base.consume().as_identifier().unwrap().to_string();
-      self.preprocess_id(&temp, line, output);
+      self.preprocess_id(&temp, line, file, output);
     }
   }
 
@@ -178,6 +178,7 @@ impl Preprocessor {
 
     while self.base.has_peek() {
       let line = self.base.peek().line;
+      let file = self.base.peek().file;
       if self.base.tryconsume(Token { kind: TokenKind::GetConfig, ..Default::default() }) {
         let block = self.base.consume().as_paren_block()
           .unwrap_or_else(|| self.base.error("Expected ( ... ) block"));
@@ -199,11 +200,11 @@ impl Preprocessor {
           size as u64
         });
         
-        output.push(Token { kind: TokenKind::Literal(size.to_string()), line });
+        output.push(Token { kind: TokenKind::Literal(size.to_string()), line, file });
         continue;
       }
 
-      self.preprocess_one(line, &mut output);
+      self.preprocess_one(line, file, &mut output);
     }
 
     output

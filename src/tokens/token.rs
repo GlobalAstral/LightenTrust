@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, path::PathBuf};
 
 use crate::parser::literals::Literal;
 
@@ -20,7 +20,8 @@ pub enum TokenKind {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Default)]
 pub struct Token {
   pub kind: TokenKind,
-  pub line: usize
+  pub line: usize,
+  pub file: PathBuf
 }
 
 impl Token {

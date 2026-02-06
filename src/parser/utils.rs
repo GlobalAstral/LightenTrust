@@ -1,15 +1,16 @@
-use std::{fmt::Display, process::exit};
+use std::{fmt::Display, path::PathBuf, process::exit};
 
 pub struct Processor<T> where T: Clone + Display + Default {
   input: Vec<T>,
   pub peek: usize,
   equals_criteria: Box<dyn Fn(&T, &T) -> bool>,
-  get_line: Box<dyn Fn(&T) -> usize>
+  get_line: Box<dyn Fn(&T) -> usize>,
+  get_file: Box<dyn Fn(&T) -> PathBuf>,
 }
 
 impl<T> Processor<T> where T: Clone + Display + Default {
-  pub fn new(i: Vec<T>, criteria: Box<dyn Fn(&T, &T) -> bool>, get_line: Box<dyn Fn(&T) -> usize>) -> Processor<T> {
-    Self { input: i, peek: 0, equals_criteria: criteria, get_line }
+  pub fn new(i: Vec<T>, criteria: Box<dyn Fn(&T, &T) -> bool>, get_line: Box<dyn Fn(&T) -> usize>, get_file: Box<dyn Fn(&T) -> PathBuf>) -> Processor<T> {
+    Self { input: i, peek: 0, equals_criteria: criteria, get_line, get_file: get_file }
   }
 
   pub fn has_peek(&self) -> bool {
@@ -17,7 +18,7 @@ impl<T> Processor<T> where T: Clone + Display + Default {
   }
 
   pub fn error(&self, msg: &str) -> ! {
-    eprintln!("Error: {} at line: {}", msg, (self.get_line)(&self.peek_back()));
+    eprintln!("Error: {} at line: {} in file: {}", msg, (self.get_line)(&self.peek_back()), (self.get_file)(&self.peek_back()).display());
     exit(1)
   }
 

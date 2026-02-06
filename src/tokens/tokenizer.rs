@@ -1,4 +1,4 @@
-use std::process::exit;
+use std::{path::PathBuf, process::exit};
 
 use crate::{parser::utils::Processor, tokens::token::{Token, TokenKind}};
 
@@ -9,16 +9,17 @@ pub struct Tokenizer {
   output: Vec<Token>,
   comment: bool,
   multicomment: bool,
+  file: PathBuf,
 }
 
 impl Tokenizer {
   fn error(&self, s: &str) -> ! {
-    eprintln!("Error: {} at line {}", s, self.line);
+    eprintln!("Error: {} at line: {} in file: {}", s, self.line, self.file.display());
     exit(1);
   }
 
-  pub fn new(i: &str) -> Self {
-    Self { base: Processor::new(i.chars().collect::<Vec<char>>(), Box::new(|a, b| a == b), Box::new(|_| 0)), line: 1, output: Vec::new(), comment: false, multicomment: false }
+  pub fn new(i: &str, file: PathBuf) -> Self {
+    Self { base: Processor::new(i.chars().collect::<Vec<char>>(), Box::new(|a, b| a == b), Box::new(|_| 0), Box::new(|_| PathBuf::new())), line: 1, output: Vec::new(), comment: false, multicomment: false, file: file }
   }
 
   fn tokenize_until(&mut self, find: char) -> Vec<Token> {
@@ -239,7 +240,7 @@ impl Tokenizer {
         }
       };
     if let Some(kind) = kind {
-      Some(Token {kind: kind, line: self.line})
+      Some(Token {kind: kind, line: self.line, file: self.file.clone()})
     } else {
       None
     }
