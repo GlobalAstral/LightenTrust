@@ -1,6 +1,19 @@
 use std::fmt::Display;
 
-use crate::parser::{assembly::{AssemblyChunk}, expressions::{Expression, Operator}, types::{Type, Variable}};
+use crate::parser::{assembly::AssemblyChunk, expressions::{Expression, Operator}, types::{Type, Variable}, utils::ABI};
+
+
+
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
+pub struct Linkage {
+  abi: ABI,
+}
+
+impl Display for Linkage  {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{:?}", self.abi)
+  }
+}
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct Fnc {
@@ -9,11 +22,16 @@ pub struct Fnc {
   pub arguments: Vec<Variable>,
   pub body: Option<Box<Node>>,
   pub id: u64,
+  pub variadic: bool,
+  pub linkage: Option<Linkage>
 }
 
 impl Display for Fnc  {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "fnc {}<{}>({}) {}", self.name, self.id, self.arguments.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", "), self.return_type)
+    let temp = if self.linkage.is_some() {
+      &format!("{}", self.linkage.as_ref().unwrap())
+    } else { "default" };
+    write!(f, "fnc [{}, variadic:{}] {}<{}>({}) {}", temp, self.variadic,  self.name, self.id, self.arguments.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", "), self.return_type)
   }
 }
 
@@ -57,7 +75,7 @@ impl Display for Node {
     match self {
       Self::Scope(s) => write!(f, "{{\n\t{}}}", s.iter().map(|n| format!("{}", n)).collect::<Vec<String>>().join("\n\t")),
       Self::Packet(s) => write!(f, "[\n\t{}]", s.iter().map(|n| format!("{}", n)).collect::<Vec<String>>().join("\n\t")),
-      Self::FncDecl(fnc) => write!(f, "fnc {}<{}>({}) {} {}", fnc.name, fnc.id, fnc.arguments.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", "), fnc.return_type, if let Some(p) = &fnc.body {format!("{}", p)} else {String::from(";")}),
+      Self::FncDecl(fnc) => write!(f, "{}", fnc),
       Self::Expr(e) => write!(f, "{}", e),
       Self::OperatorDecl(operator) => {
         let temp = if operator.right.is_some() {

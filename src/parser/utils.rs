@@ -67,3 +67,10 @@ impl<T> Processor<T> where T: Clone + Display + Default {
     return ret;
   }
 }
+
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
+pub enum ABI {
+  WINC,
+  LT,
+  UNIXC
+}

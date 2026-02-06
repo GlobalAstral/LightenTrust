@@ -1,10 +1,10 @@
 use std::{iter::Peekable, process::exit};
 
-use crate::tokens::token::{Token, TokenKind};
+use crate::{parser::utils::Processor, tokens::token::{Token, TokenKind}};
 
 
 pub struct Tokenizer {
-  input: Peekable<std::vec::IntoIter<char>>,
+  base: Processor<char>,
   line: usize,
   output: Vec<Token>,
   comment: bool,
@@ -19,19 +19,19 @@ impl Tokenizer {
 
   pub fn new(i: &str) -> Self {
     let temp: Peekable<std::vec::IntoIter<char>> = i.chars().collect::<Vec<_>>().into_iter().peekable();
-    Self { input: temp, line: 1, output: Vec::new(), comment: false, multicomment: false }
+    Self { base: Processor::new(i.chars().collect::<Vec<char>>(), Box::new(|a, b| a == b), Box::new(|_| 0)), line: 1, output: Vec::new(), comment: false, multicomment: false }
   }
 
   fn tokenize_until(&mut self, find: char) -> Vec<Token> {
     let mut v: Vec<Token> = Vec::new();
     let mut flag = false;
-    while let Some(&p) = self.input.peek() {
+    while self.base.has_peek() {
       if self.process_comments() {
         continue;
       }
-      if p == find {
+      if self.base.peek() == find {
         flag = true;
-        self.input.next();
+        self.base.consume();
         break;
       }
       if let Some(tok) = self.token_one() {
@@ -47,13 +47,13 @@ impl Tokenizer {
   fn get_until(&mut self, find: char) -> String {
     let mut v: String = String::new();
     let mut flag = false;
-    while let Some(p) = self.input.peek() {
-      if *p == find {
+    while self.base.has_peek() {
+      if self.base.peek() == find {
         flag = true;
-        self.input.next();
+        self.base.consume();
         break;
       }
-      v.push(self.input.next().unwrap());
+      v.push(self.base.consume());
     };
     if !flag {
       self.error(&format!("Expected '{}' closing delimiter.", find));
@@ -62,11 +62,9 @@ impl Tokenizer {
   }
 
   fn parse_escaped_char(&mut self) -> char {
-    match self.input.next() {
-      Some('\\') => {
-        let next = self.input.next().unwrap_or_else(|| {
-          self.error("Unexpected end of input after '\\'");
-        });
+    match self.base.consume() {
+      '\\' => {
+        let next = self.base.consume();
         match next {
           'n' => '\n',
           'r' => '\r',
@@ -76,23 +74,21 @@ impl Tokenizer {
           '"' => '"',
           '0' => '\0',
           'x' => {
-            let hi = self.input.next()
-              .and_then(|c| c.to_digit(16))
+            let hi = self.base.consume().to_digit(16)
               .unwrap_or_else(|| self.error("Invalid hex escape"));
-            let lo = self.input.next()
-              .and_then(|c| c.to_digit(16))
+            let lo = self.base.consume().to_digit(16)
               .unwrap_or_else(|| self.error("Invalid hex escape"));
             std::char::from_u32((hi << 4 | lo) as u32)
               .unwrap_or_else(|| self.error("Invalid hex value"))
           }
           'u' => {
-            if self.input.next() != Some('{') {
+            if self.base.consume() != '{' {
               self.error("Expected '{' after \\u");
             }
             let mut codepoint = String::new();
-            while let Some(c) = self.input.next() {
-              if c == '}' { break; }
-              codepoint.push(c);
+            while self.base.has_peek() {
+              if self.base.peek() == '}' { break; }
+              codepoint.push(self.base.consume());
             }
             if codepoint.is_empty() {
               self.error("Empty unicode escape");
@@ -105,70 +101,74 @@ impl Tokenizer {
           other => other,
         }
       }
-      Some(c) => c,
-      None => self.error("Unexpected end of input"),
+      c => c,
     }
   }
 
   fn is_char_present(&mut self, c: char) -> bool {
-    let temp = self.input.clone();
-    while let Some(ch) = self.input.peek() {
-      if *ch == c {
-        self.input = temp;
+    let revert = self.base.peek;
+    while self.base.has_peek() {
+      if self.base.peek() == c {
+        self.base.peek = revert;
         return true;
       }
-      self.input.next();
+      self.base.consume();
     };
-    self.input = temp;
+    self.base.peek = revert;
     return false;
   }
 
   fn token_one(&mut self) -> Option<Token> {
-    let kind = if let Some(ch) = self.input.next() {
-      match ch {
+    let kind =  match self.base.consume() {
         '(' => Some(TokenKind::ParenthesisBlock(self.tokenize_until(')'))),
         '{' => Some(TokenKind::CurlyBlock(self.tokenize_until('}'))),
         '<' if self.is_char_present('>') => Some(TokenKind::AngleBlock(self.tokenize_until('>'))),
         '[' => Some(TokenKind::SquareBlock(self.tokenize_until(']'))),
         ';' => Some(TokenKind::Semicolon),
-        '.' => Some(TokenKind::Dot),
+        '.' => {
+          if self.base.tryconsume('.') {
+            if self.base.tryconsume('.') {
+              Some(TokenKind::Ellipsis)
+            } else {
+              Some(TokenKind::TwoDots)
+            }
+          } else {
+            Some(TokenKind::Dot)
+          }
+        },
         ',' => Some(TokenKind::Comma),
         '&' => Some(TokenKind::Ampersand),
         '$' => Some(TokenKind::Dollar),
         '#' => Some(TokenKind::Hash),
         '\'' => {
-          if let Some(ch) = self.input.next() {
-            let parsed = if ch == '\\' {
-              self.parse_escaped_char()
-            } else {
-              ch
-            };
-            match self.input.next() {
-              Some('\'') => Some(TokenKind::Literal(format!("'{}'", parsed))),
-              _ => self.error("Expected closing single quote")
-            }
+          let parsed = if self.base.peek() == '\\' {
+            self.parse_escaped_char()
           } else {
-            self.error("Expected character literal")
+            self.base.consume()
+          };
+          match self.base.consume() {
+            '\'' => Some(TokenKind::Literal(format!("'{}'", parsed))),
+            _ => self.error("Expected closing single quote")
           }
         },
         '"' => {
           let mut buf = String::new();
-          while let Some(&ch) = self.input.peek() {
+          while self.base.has_peek() {
             if self.process_comments() {
               continue;
             }
-            if ch == '"' { self.input.next(); break; }
+            if self.base.peek() == '"' { self.base.consume(); break; }
             buf.push(self.parse_escaped_char());
           }
           Some(TokenKind::Literal(format!("\"{}\"", buf)))
         },
         c => {
-          if let Some(cha) = self.input.peek() && c == '0' && *cha == 'x' {
+          if c == '0' && self.base.peek() == 'x' {
             let mut buf: String = String::from(c);
-            buf.push(self.input.next().unwrap());
-            while let Some(ch) = self.input.peek() {
-              if ch.is_digit(16) {
-                buf.push(self.input.next().unwrap());
+            buf.push(self.base.consume());
+            while self.base.has_peek() {
+              if self.base.peek().is_digit(16) {
+                buf.push(self.base.consume());
                 continue;
               }
               break;
@@ -176,9 +176,9 @@ impl Tokenizer {
             Some(TokenKind::Literal(buf))
           } else if c.is_alphabetic() {
             let mut buf: String = String::from(c);
-            while let Some(ch) = self.input.peek() {
-              if ch.is_alphanumeric() {
-                buf.push(self.input.next().unwrap());
+            while self.base.has_peek() {
+              if self.base.peek().is_alphanumeric() {
+                buf.push(self.base.consume());
                 continue;
               }
               break;
@@ -215,9 +215,9 @@ impl Tokenizer {
             }
           } else if c.is_digit(10) {
             let mut buf: String = String::from(c);
-            while let Some(ch) = self.input.peek() {
-              if ch.is_digit(10) || *ch == '.' {
-                buf.push(self.input.next().unwrap());
+            while self.base.has_peek() {
+              if self.base.peek().is_digit(10) || self.base.peek() == '.' {
+                buf.push(self.base.consume());
                 continue;
               }
               break;
@@ -225,9 +225,9 @@ impl Tokenizer {
             Some(TokenKind::Literal(buf))
           } else if !c.is_whitespace() && !c.is_alphanumeric() {
             let mut buf: String = String::from(c);
-            while let Some(ch) = self.input.peek() {
-              if !ch.is_whitespace() && !ch.is_alphanumeric() && (*ch != '<' || !self.is_char_present('>')) {
-                buf.push(self.input.next().unwrap());
+            while self.base.has_peek() {
+              if !self.base.peek().is_whitespace() && !self.base.peek().is_alphanumeric() && (self.base.peek() != '<' || !self.is_char_present('>')) {
+                buf.push(self.base.consume());
                 continue;
               }
               break;
@@ -237,10 +237,7 @@ impl Tokenizer {
             None
           }
         }
-      }
-    } else {
-      None
-    };
+      };
     if let Some(kind) = kind {
       Some(Token {kind: kind, line: self.line})
     } else {
@@ -249,52 +246,42 @@ impl Tokenizer {
   }
 
   fn process_comments(&mut self) -> bool {
-    if let Some(&ch) = self.input.peek() {
-      if ch == '\n' {
-        self.line += 1;
-        self.input.next();
-        self.comment = false;
+    let revert = self.base.peek;
+    if self.base.tryconsume('\n') {
+      self.line += 1;
+      self.comment = false;
+      return true;
+    } else if self.base.tryconsume('/') {
+      if self.base.tryconsume('/') {
+        self.comment = true;
         return true;
-      }
-
-      if ch == '/' {
-        self.input.next();
-        if self.input.next_if_eq(&'/').is_some() {
-          self.comment = true;
-          return true;
-        } else if self.input.next_if_eq(&'*').is_some() {
-          self.multicomment = true;
-          return true;
-        }
-        self.input.next_back();
-        return false;
-      }
-
-      if ch == '*' {
-        self.input.next();
-        if self.input.next_if_eq(&'/').is_some() {
-          self.multicomment = false;
-          return true
-        }
-        self.input.next_back();
-        return false;
-      }
-
-      if self.comment || self.multicomment {
-        self.input.next();
+      } else if self.base.tryconsume('*') {
+        self.multicomment = true;
         return true;
+      } else {
+        self.base.peek = revert;
       }
+    } else if self.multicomment &&  self.base.tryconsume('*') {
+      if self.base.tryconsume('/') {
+        self.multicomment = false;
+        return true;
+      } else {
+        self.base.peek = revert;
+      }
+    } else if self.comment || self.multicomment {
+      self.base.consume();
+      return true;
     }
     false
   }
 
   pub fn tokenize(&mut self) -> &Vec<Token> {
-    while let Some(&ch) = self.input.peek() {
+    while self.base.has_peek() {
       if self.process_comments() {
         continue;
       }
-      if ch.is_whitespace() {
-        self.input.next();
+      if self.base.peek().is_whitespace() {
+        self.base.consume();
         continue;
       }
 

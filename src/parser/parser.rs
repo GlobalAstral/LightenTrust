@@ -201,7 +201,14 @@ impl Parser {
   }
 
   fn parse_expr(&mut self) -> Expression {
-    let expr = if matches!(self.base.peek().kind, TokenKind::Symbols(_)) {
+    let expr = if self.base.tryconsume(Token { kind: TokenKind::Symbols("*".into()), ..Default::default() }) {
+      let expr = self.parse_expr();
+      if let Type::Pointer { r#type } = &expr.return_type {
+        let temp = *r#type.clone();
+        return Expression { return_type: temp, kind: ExprKind::Dereference(Box::new(expr)) }
+      }
+      self.base.error("Cannot dereference a non pointer type");
+    } else if matches!(self.base.peek().kind, TokenKind::Symbols(_)) {
       let symbols = self.base.consume().as_symbols().unwrap().to_string();
       let expr = self.parse_expr();
       let op = self.operators.iter().find(|op| {
@@ -216,15 +223,6 @@ impl Parser {
     } else if self.base.tryconsume(Token { kind: TokenKind::Ampersand, ..Default::default() }) {
       let expr = self.parse_expr();
       Expression { return_type: Type::Pointer { r#type: Box::new(expr.return_type.clone()) }, kind: ExprKind::Reference(Box::new(expr)) }
-    
-    } else if matches!(self.base.peek().kind, TokenKind::Symbols(s) if s == "*") {
-      self.base.consume();
-      let expr = self.parse_expr();
-    
-      if let Type::Pointer { r#type } = &expr.return_type {
-        return Expression { return_type: *r#type.clone(), kind: ExprKind::Dereference(Box::new(expr)) }
-      }
-      self.base.error("Cannot dereference a non pointer type");
     
     } else if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
       let block = self.base.consume().as_paren_block().unwrap();
@@ -254,12 +252,11 @@ impl Parser {
           }
           args
         });
-
         let found_funcs: Vec<Fnc> = self.functions.iter()
         .filter(|f| {
           f.name == name &&
-          f.arguments.len() == args.len() &&
-          f.arguments.iter().zip(&args).all(|(x, y)| x.r#type.compatible_with(&y.return_type))
+          (f.variadic || f.arguments.len() == args.len()) &&
+          f.arguments.iter().zip(&args[..f.arguments.len()]).all(|(x, y)| x.r#type.compatible_with(&y.return_type))
         })
         .cloned()
         .collect();
@@ -437,6 +434,16 @@ impl Parser {
         self.base.error(&format!("Type {} cannot be casted to a {} type", expr, t));
       }
       Expression { kind: ExprKind::Cast { base: Box::new(expr), into: t.clone() }, return_type: t }
+    } else if self.base.tryconsume(Token { kind: TokenKind::Symbols("=".into()), ..Default::default() }) {
+      if !matches!(expr.kind, ExprKind::Variable(_) | ExprKind::Dereference(_) | ExprKind::Index { .. } | ExprKind::FieldAccess { .. }) {
+        self.base.error(&format!("{} is not a valid place for assignment", expr))
+      };
+
+      let value = self.parse_expr();
+      if !value.return_type.compatible_with(&expr.return_type) {
+        self.base.error(&format!("Value of type {} cannot be assigned to value of type {}", value.return_type, expr.return_type))
+      };
+      Expression { return_type: value.return_type.clone(), kind: ExprKind::Assignment { left: Box::new(expr), right: Box::new(value) } }
     } else if matches!(self.base.peek().kind, TokenKind::Symbols(_)) {
       let left = expr;
       let symbols = self.base.consume().as_symbols().unwrap().to_string();
@@ -484,27 +491,32 @@ impl Parser {
     
     } else if self.base.tryconsume(Token { kind: TokenKind::Fnc, ..Default::default() }) {
       let name = self.parse_identifier();
-      let arguments: Vec<Variable> = if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
+      let (arguments, variadic)  = if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
         let block = self.base.consume().as_paren_block().unwrap();
         let this: *mut Parser = self;
         
         self.base.switch(block, |base| {
           let mut count: usize = 0;
           let mut temp: Vec<Variable> = Vec::new();
+          let mut variadic: bool = false;
           
           while base.has_peek() {
             if count > 0 {
               base.require(Token { kind: TokenKind::Comma, ..Default::default() });
             }
-            temp.push( unsafe { (*this).parse_var(false) } );
+            if base.tryconsume(Token { kind: TokenKind::Ellipsis, ..Default::default() }) {
+              variadic = true;
+            } else {
+              temp.push( unsafe { (*this).parse_var(false) } );
+            }
             count += 1;
           }
           
-          temp
+          (temp, variadic)
         })
       
       } else {
-        Vec::new()
+        (Vec::new(), false)
       };
       
       let return_type = self.parse_type()
@@ -529,7 +541,7 @@ impl Parser {
       
       self.locals.drain(before..);
       
-      let fnc = Fnc {name: name.clone(), return_type: Box::new(return_type.clone()), arguments: arguments.clone(), body: body, id: generate_id()};
+      let fnc = Fnc {name: name.clone(), return_type: Box::new(return_type.clone()), arguments: arguments.clone(), body: body, id: generate_id(), variadic, linkage: None};
       if self.functions.iter().find(|a| {
         a.name == name && 
         a.arguments.len() == arguments.len() && 
@@ -648,30 +660,6 @@ impl Parser {
       self.namespaces.pop();
 
       Node::Packet(temp)
-    } else if matches!(self.base.peek().kind, TokenKind::Identifier(_)) {
-      let id = self.require_identifier();
-      
-      let var = 
-        self.locals
-        .iter()
-        .find(|v| v.name == id)
-        .or_else(|| self.globals.iter().find(|v| v.name == id))
-        .unwrap_or_else(|| self.base.error(&format!("Variable {} does not exist", id)))
-        .clone();
-
-      if !var.mutable {
-        self.base.error(&format!("Variable {} is not mutable", id));
-      }
-      
-      self.base.require(Token { kind: TokenKind::Symbols("=".to_string()), ..Default::default() });
-      
-      let expr = self.parse_expr();
-      if !expr.return_type.compatible_with(&var.r#type) {
-        self.base.error(&format!("Type {} cannot be set into a type {}", expr.return_type, var.r#type))
-      };
-      self.base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
-
-      Node::VariableSet { var: var, expr }
     } else if self.base.tryconsume(Token { kind: TokenKind::Return, ..Default::default() }) {
       if self.return_type.is_none() {
         self.base.error("Cannot return outside of function");
@@ -749,7 +737,9 @@ impl Parser {
       }
       self.base.error("Cannot continue outside of a loop");
     } else {
-      Node::Expr(self.parse_expr())
+      let temp = self.parse_expr();
+      self.base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
+      Node::Expr(temp)
     }
   }
 

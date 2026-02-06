@@ -48,6 +48,10 @@ pub enum ExprKind {
     left: Box<Expression>,
     right: Box<Expression>,
     operator: Operator
+  },
+  Assignment {
+    left: Box<Expression>,
+    right: Box<Expression>
   }
 }
 
@@ -55,7 +59,7 @@ impl Display for ExprKind {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Self::Cast { base, into } => write!(f, "{} to {}", base, into),
-      Self::Dereference(e) => write!(f, "*{}", e),
+      Self::Dereference(e) => write!(f, "*({})", e),
       Self::FieldAccess { base, field } => write!(f, "{}.{}", base, field),
       Self::FncCall { id, args } => write!(f, "fnc<{}>({})", id, args.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", ")),
       Self::FncPtrCall { expr, args } => write!(f, "{}({})", expr, args.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", ")),
@@ -66,7 +70,8 @@ impl Display for ExprKind {
       Self::SizeOf(e) => write!(f, "sizeof {}", e),
       Self::Variable(v) => write!(f, "({})", v),
       Self::Unary { expr, operator } => write!(f, "{}{}", operator.symbols, expr),
-      Self::Binary { left, right, operator } => write!(f, "{} {} {}", left, operator.symbols, right)
+      Self::Binary { left, right, operator } => write!(f, "{} {} {}", left, operator.symbols, right),
+      Self::Assignment { left, right } => write!(f, "{} = {}", left, right),
     }
   }
 }
