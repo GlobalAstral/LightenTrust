@@ -6,7 +6,7 @@ use crate::parser::{assembly::AssemblyChunk, expressions::{Expression, Operator}
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct Linkage {
-  abi: ABI,
+  pub abi: ABI,
 }
 
 impl Display for Linkage  {
@@ -40,14 +40,11 @@ pub enum Node {
   Scope(Vec<Node>),
   Packet(Vec<Node>),
   FncDecl(Fnc),
+  ExternFnc(Fnc),
   OperatorDecl(Operator),
   VariableDecl {
     var: Variable,
     expr: Option<Expression>
-  },
-  VariableSet {
-    var: Variable,
-    expr: Expression
   },
   Return(Expression),
   Assembly(Vec<AssemblyChunk>),
@@ -76,6 +73,7 @@ impl Display for Node {
       Self::Scope(s) => write!(f, "{{\n\t{}}}", s.iter().map(|n| format!("{}", n)).collect::<Vec<String>>().join("\n\t")),
       Self::Packet(s) => write!(f, "[\n\t{}]", s.iter().map(|n| format!("{}", n)).collect::<Vec<String>>().join("\n\t")),
       Self::FncDecl(fnc) => write!(f, "{}", fnc),
+      Self::ExternFnc(fnc) => write!(f, "{}", fnc),
       Self::Expr(e) => write!(f, "{}", e),
       Self::OperatorDecl(operator) => {
         let temp = if operator.right.is_some() {
@@ -84,7 +82,6 @@ impl Display for Node {
         write!(f, "{} {} {} - {} -> {}", operator.left, operator.symbols, temp, operator.precedence, operator.return_type)
       },
       Self::VariableDecl { var, expr } => write!(f, "{} {}", var, if expr.is_some() {format!("= {}", expr.as_ref().unwrap())} else {String::new()}),
-      Self::VariableSet { var, expr } => write!(f, "{} = {}", var, expr),
       Self::Return(e) => write!(f, "return {}", e),
       Self::If(c, b, e) => write!(f, "if {} {} {}", c, b, if let Some(e) = e {format!("else {}", e)} else {String::new()}),
       Self::While(c, b) => write!(f, "while {} {}", c, b),

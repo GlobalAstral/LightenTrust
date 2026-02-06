@@ -211,6 +211,7 @@ impl Tokenizer {
               "getconfig" => Some(TokenKind::GetConfig),
               "ifdef" => Some(TokenKind::Ifdef),
               "ifndef" => Some(TokenKind::Ifndef),
+              "extern" => Some(TokenKind::Extern),
               s => Some(TokenKind::Identifier(s.to_string()))
             }
           } else if c.is_digit(10) {

@@ -1,7 +1,7 @@
 
 use std::collections::HashMap;
 
-use crate::{constants::CONFIGS, parser::{assembly::{AssemblyChunk, AssemblyParser}, expressions::{ExprKind, Expression, Operator}, nodes::{Fnc, Node}, types::{MemoryKind, Type, Variable}, utils::Processor}, tokens::token::{Token, TokenKind}};
+use crate::{constants::CONFIGS, parser::{assembly::{AssemblyChunk, AssemblyParser}, expressions::{ExprKind, Expression, Operator}, nodes::{Fnc, Linkage, Node}, types::{MemoryKind, Type, Variable}, utils::{ABI, Processor}}, tokens::token::{Token, TokenKind}};
 
 static mut CURRENT_ID: u64 = 0;
 
@@ -279,6 +279,9 @@ impl Parser {
         } else {
           &found_funcs[0]
         };
+        if function.body.is_none() && function.linkage.is_none() {
+          self.base.error("Cannot call function with no body");
+        }
         Expression { kind: ExprKind::FncCall { id: function.id, args }, return_type: *function.return_type.clone() }
       
       } else if self.functions.iter().find(|f| f.name == name).is_some() {
@@ -315,6 +318,10 @@ impl Parser {
             }
             
             if funcs.len() == 1 {
+              let f = funcs[0];
+              if f.body.is_none() && f.linkage.is_none() {
+                self.base.error("Cannot call function with no body");
+              }
               Expression { kind: ExprKind::FncPtrRef(funcs[0].id), return_type: *funcs[0].return_type.clone() }
             
             } else {
@@ -322,6 +329,9 @@ impl Parser {
               let t = self.parse_type().unwrap_or_else(|| self.base.error("Expected Type"));
             
               if let Some(f) = funcs.iter().find(|f| f.return_type.compatible_with(&t)) {
+                if f.body.is_none() && f.linkage.is_none() {
+                  self.base.error("Cannot call function with no body");
+                }
                 Expression { kind: ExprKind::FncPtrRef(f.id), return_type: *f.return_type.clone() }
             
               } else {
@@ -334,7 +344,11 @@ impl Parser {
           }
         
         } else {
-          Expression { kind: ExprKind::FncPtrRef(funcs[0].id), return_type: *funcs[0].return_type.clone() }
+          let f = &funcs[0];
+          if f.body.is_none() && f.linkage.is_none() {
+            self.base.error("Cannot call function with no body");
+          }
+          Expression { kind: ExprKind::FncPtrRef(f.id), return_type: *funcs[0].return_type.clone() }
         }
       
       } else {
@@ -736,6 +750,69 @@ impl Parser {
         return Node::Continue;
       }
       self.base.error("Cannot continue outside of a loop");
+    } else if self.base.tryconsume(Token { kind: TokenKind::Extern, ..Default::default() }) {
+      let abi = if matches!(self.base.peek().kind, TokenKind::Literal(_)) {
+        let name = self.base.consume().as_literal().and_then(|l| l.as_string())
+          .unwrap_or_else(|| self.base.error("Expected String Literal"));
+        match name.to_lowercase().as_str() {
+          "winc" => ABI::WINC,
+          "unixc" => ABI::UNIXC,
+          _ => {
+            self.base.error(&format!("Expected actual ABI instead of {}", name));
+          }
+        }
+      } else {
+        ABI::LT
+      };
+
+      let name = self.base.consume().as_identifier()
+        .unwrap_or_else(|| self.base.error("Expected String Literal")).to_string();
+
+      let (arguments, variadic)  = if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
+        let block = self.base.consume().as_paren_block().unwrap();
+        let this: *mut Parser = self;
+        
+        self.base.switch(block, |base| {
+          let mut count: usize = 0;
+          let mut temp: Vec<Variable> = Vec::new();
+          let mut variadic: bool = false;
+          
+          while base.has_peek() {
+            if count > 0 {
+              base.require(Token { kind: TokenKind::Comma, ..Default::default() });
+            }
+            if base.tryconsume(Token { kind: TokenKind::Ellipsis, ..Default::default() }) {
+              variadic = true;
+            } else {
+              temp.push( unsafe { (*this).parse_var(false) } );
+            }
+            count += 1;
+          }
+          
+          (temp, variadic)
+        })
+      
+      } else {
+        (Vec::new(), false)
+      };
+      
+      let return_type = self.parse_type()
+        .unwrap_or_else(|| self.base.error("Expected function return type"));
+
+      self.base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
+
+      let f: Fnc = Fnc {
+        return_type: Box::new(return_type),
+        name, 
+        arguments, 
+        body: None, 
+        id: generate_id(), 
+        variadic, 
+        linkage: Some(Linkage { abi })
+      };
+
+      self.functions.push(f.clone());
+      Node::ExternFnc(f)
     } else {
       let temp = self.parse_expr();
       self.base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
