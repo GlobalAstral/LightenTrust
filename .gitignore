@@ -2,3 +2,4 @@
 .vscode/*
 test_srcs/*
 config.toml
+simulator.html
