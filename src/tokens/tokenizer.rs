@@ -1,4 +1,4 @@
-use std::{iter::Peekable, process::exit};
+use std::process::exit;
 
 use crate::{parser::utils::Processor, tokens::token::{Token, TokenKind}};
 
@@ -18,7 +18,6 @@ impl Tokenizer {
   }
 
   pub fn new(i: &str) -> Self {
-    let temp: Peekable<std::vec::IntoIter<char>> = i.chars().collect::<Vec<_>>().into_iter().peekable();
     Self { base: Processor::new(i.chars().collect::<Vec<char>>(), Box::new(|a, b| a == b), Box::new(|_| 0)), line: 1, output: Vec::new(), comment: false, multicomment: false }
   }
 
