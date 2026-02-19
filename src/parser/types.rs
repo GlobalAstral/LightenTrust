@@ -8,11 +8,12 @@ pub struct Variable {
   pub name: String,
   pub id: u64,
   pub mutable: bool,
+  pub global: bool,
 }
 
 impl Display for Variable  {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{} {} {}<{}>", self.r#type, if self.mutable {"mut"} else {""}, self.name, self.id)
+    write!(f, "{} {} {}<{}({})>", self.r#type, if self.mutable {"mut"} else {""}, self.name, self.id, if self.global {"global"} else {"local"})
   }
 }
 

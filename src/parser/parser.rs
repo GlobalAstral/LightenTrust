@@ -42,11 +42,15 @@ impl Parser {
     }
   }
 
+  fn is_global(&self) -> bool {
+    self.loop_depth == 0 && self.scope_depth == 0
+  }
+
   fn parse_var(&mut self, mutable: bool) -> Variable {
     if let Some(r#type) = self.parse_type() {
       if matches!(self.base.peek().kind, TokenKind::Identifier(_)) {
         let name = self.parse_identifier();
-        return Variable { r#type, name, id: generate_id(), mutable: mutable }
+        return Variable { r#type, name, id: generate_id(), mutable: mutable, global: self.is_global()}
       } else {
         self.base.error("Expected Identifier for Variable");
       }
@@ -638,7 +642,7 @@ impl Parser {
       if self.locals.iter().find(|v| v.name == name).is_some() || self.globals.iter().find(|v| v.name == name).is_some() {
         self.base.error(&format!("Variable {} already exists", name));
       }
-      let var = Variable {id: generate_id(), mutable: mutable, name: name, r#type: r#type};
+      let var = Variable {id: generate_id(), mutable: mutable, name: name, r#type: r#type, global: self.is_global()};
       if self.scope_depth > 0 {
         self.locals.push(var.clone());
       } else {
