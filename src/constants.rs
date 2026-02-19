@@ -11,7 +11,6 @@ pub struct Configs {
   pub floatl_size: u64,
   pub charl_size: u64,
   pub ro_sec_name: String,
-  pub entry: String,
 }
 
 impl Default for Configs  {
@@ -22,7 +21,6 @@ impl Default for Configs  {
       floatl_size: 4,
       charl_size: 1,
       ro_sec_name: ".rodata".into(),
-      entry: "main".into()
     }
   }
 }
@@ -35,4 +33,4 @@ pub fn get_configs() -> Configs {
   CONFIGS.read().expect("Cannot read configs").clone()
 }
 
-pub static DEFAULT_CONFIG: &str = "ptr_size = 8\nfloat_lit = 4\nint_lit = 4\nchar_lit = 1\nro_sec_name = '.rodata'\nentry = 'main'";
+pub static DEFAULT_CONFIG: &str = "ptr_size = 8\nfloat_lit = 4\nint_lit = 4\nchar_lit = 1\nro_sec_name = '.rodata'";

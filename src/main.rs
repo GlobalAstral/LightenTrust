@@ -54,7 +54,6 @@ fn main() -> Result<(), Box<dyn Error>> {
       floatl_size: doc.get("float_lit").unwrap().as_integer().unwrap_or(4) as u64,
       charl_size: doc.get("char_lit").unwrap().as_integer().unwrap_or(1) as u64, 
       ro_sec_name: doc.get("ro_sec_name").unwrap().as_str().unwrap_or(".rodata").into(),
-      entry: doc.get("entry").unwrap().as_str().unwrap_or("main").into(),
     };
   }
 

@@ -1,20 +1,18 @@
 use std::path::PathBuf;
 
-use toml_edit::Document;
-
 use crate::{constants::CONFIGS, parser::{nodes::Node, utils::Processor}};
 
 #[derive(Debug, Default)]
-struct Sections {
-  text: String,
-  data: String,
-  bss: String,
-  read_only: String,
+pub struct Sections {
+  pub text: String,
+  pub data: String,
+  pub bss: String,
+  pub read_only: String,
 }
 
 pub struct Generator {
-  base: Processor<Node>,
-  sections: Sections
+  pub base: Processor<Node>,
+  pub sections: Sections
 }
 
 impl Generator {
@@ -27,8 +25,8 @@ impl Generator {
 
   fn compose(&self) -> String {
     let configs = CONFIGS.read().unwrap();
-    format!("global {}\nsection .text\n{}\n\nsection .data\n{}\n\nsection {}\n{}\n\nsection .bss\n{}\n",
-      configs.entry, self.sections.text, self.sections.data, configs.ro_sec_name, self.sections.read_only, self.sections.bss
+    format!("global main\nsection .text\n{}\n\nsection .data\n{}\n\nsection {}\n{}\n\nsection .bss\n{}\n",
+      self.sections.text, self.sections.data, configs.ro_sec_name, self.sections.read_only, self.sections.bss
     )
   }
 }
