@@ -7,6 +7,7 @@ use crate::{constants::{CONFIGS, Configs, DEFAULT_CONFIG, EXTENSION}, parser::pa
 mod constants;
 mod tokens;
 mod parser;
+mod generator;
 
 fn main() -> Result<(), Box<dyn Error>> {
   let args: Vec<String> = env::args().collect();
@@ -52,6 +53,8 @@ fn main() -> Result<(), Box<dyn Error>> {
       intl_size: doc.get("int_lit").unwrap().as_integer().unwrap_or(4) as u64, 
       floatl_size: doc.get("float_lit").unwrap().as_integer().unwrap_or(4) as u64,
       charl_size: doc.get("char_lit").unwrap().as_integer().unwrap_or(1) as u64, 
+      ro_sec_name: doc.get("ro_sec_name").unwrap().as_str().unwrap_or(".rodata").into(),
+      entry: doc.get("entry").unwrap().as_str().unwrap_or("main").into(),
     };
   }
 
