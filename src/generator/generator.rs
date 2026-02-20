@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{constants::{CONFIGS, get_configs}, parser::{nodes::Node, utils::Processor}};
+use crate::{constants::get_configs, parser::{nodes::Node, utils::Processor}};
 
 #[derive(Debug, Default)]
 pub struct Sections {
