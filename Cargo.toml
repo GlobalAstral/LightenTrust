@@ -4,5 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+include-file = "0.5.1"
+include_dir = "0.7.4"
 lazy_static = "1.5.0"
 toml_edit = "0.24.0"

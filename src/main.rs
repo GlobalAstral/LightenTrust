@@ -2,7 +2,7 @@ use std::{env, error::Error, fs::{self, OpenOptions}, io::Write, path::PathBuf};
 
 use toml_edit::Document;
 
-use crate::{constants::{CONFIGS, Configs, DEFAULT_CONFIG, EXTENSION}, parser::parser::Parser, tokens::{preprocessor::Preprocessor, tokenizer::Tokenizer}};
+use crate::{constants::{CONFIGS, Configs, DEFAULT_CONFIG, EXTENSION, SectionNames, Sizes}, parser::parser::Parser, tokens::{preprocessor::Preprocessor, tokenizer::Tokenizer}};
 
 mod constants;
 mod tokens;
@@ -49,11 +49,25 @@ fn main() -> Result<(), Box<dyn Error>> {
     let doc: Document<String> = fs::read_to_string(config_file)?.parse()?;
     let mut writer = CONFIGS.write()?;
     *writer = Configs {
-      ptr_size: doc.get("ptr_size").unwrap().as_integer().unwrap_or(8) as u64, 
-      intl_size: doc.get("int_lit").unwrap().as_integer().unwrap_or(4) as u64, 
-      floatl_size: doc.get("float_lit").unwrap().as_integer().unwrap_or(4) as u64,
-      charl_size: doc.get("char_lit").unwrap().as_integer().unwrap_or(1) as u64, 
-      ro_sec_name: doc.get("ro_sec_name").unwrap().as_str().unwrap_or(".rodata").into(),
+      sizes: {
+        let szs = doc.get("sizes").and_then(|t| t.as_table()).expect("Cannot get table 'sizes'");
+        Sizes {
+          pointer: szs.get("pointer").and_then(|s| s.as_integer()).unwrap_or(8) as u64,
+          intl_size: szs.get("int_lit").and_then(|s| s.as_integer()).unwrap_or(4) as u64, 
+          floatl_size: szs.get("float_lit").and_then(|s| s.as_integer()).unwrap_or(4) as u64,
+          charl_size: szs.get("char_lit").and_then(|s| s.as_integer()).unwrap_or(1) as u64, 
+        }
+      },
+      sections: {
+        let secs = doc.get("sections").and_then(|t| t.as_table()).expect("Cannot get table 'sections'");
+        SectionNames {
+          read_only: secs.get("read_only").and_then(|s| s.as_str()).unwrap_or(".rdata").into(),
+          text: secs.get("text").and_then(|s| s.as_str()).unwrap_or(".text").into(),
+          data: secs.get("data").and_then(|s| s.as_str()).unwrap_or(".data").into(),
+          bss: secs.get("bss").and_then(|s| s.as_str()).unwrap_or(".bss").into(),
+        }
+      },
+      entry: doc.get("entry").and_then(|s| s.as_str()).unwrap_or("main").into(),
     };
   }
 

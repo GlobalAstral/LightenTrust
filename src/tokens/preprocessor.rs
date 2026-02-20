@@ -189,10 +189,10 @@ impl Preprocessor {
           let factor = base.consume().as_literal().and_then(|l| l.as_float())
             .unwrap_or_else(|| base.error("Expected Float Literal"));
           let size = match name.as_str() {
-            "charl_size" => get_configs().charl_size,
-            "floatl_size" => get_configs().floatl_size,
-            "intl_size" => get_configs().intl_size,
-            "ptr_size" => get_configs().ptr_size,
+            "charl_size" => get_configs().sizes.charl_size,
+            "floatl_size" => get_configs().sizes.floatl_size,
+            "intl_size" => get_configs().sizes.intl_size,
+            "ptr_size" => get_configs().sizes.pointer,
             _ => {
               base.error(&format!("Config {} does not exist", name));
             }

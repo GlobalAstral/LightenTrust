@@ -80,17 +80,20 @@ impl Generator {
     }
   }
 
-  pub fn init_alloc(&mut self, name: &str, size: usize, value: &str) {
+  pub fn init_alloc<'a>(&mut self, name: &'a str, size: usize, value: &str) -> &'a str {
     self.sections.data.push_str(&format!("{}: {} {}", name, self.get_allocation_instruction(size), value));
+    name
   }
 
-  pub fn const_alloc(&mut self, name: &str, size: usize, value: &str) {
+  pub fn const_alloc<'a>(&mut self, name: &'a str, size: usize, value: &str) -> &'a str {
     self.sections.read_only.push_str(&format!("{}: {} {}", name, self.get_allocation_instruction(size), value));
+    name
   }
 
-  pub fn uninit_alloc(&mut self, name: &str, size: usize) {
+  pub fn uninit_alloc<'a>(&mut self, name: &'a str, size: usize) -> &'a str {
     let (ins, sz) = self.get_uninit_alloc_ins(size);
     self.sections.bss.push_str(&format!("{}: {} {}", name, ins, sz));
+    name
   }
 
 }

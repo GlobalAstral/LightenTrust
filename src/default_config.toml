@@ -1,0 +1,15 @@
+entry = "main"
+
+[sections]
+  text = ".text"
+  data = ".data"
+  bss = ".bss"
+  read_only = ".rdata"
+
+[sizes]
+  pointer = 8
+  int_lit = 4
+  float_lit = 4
+  char_lit = 1
+
+
