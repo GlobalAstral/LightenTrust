@@ -20,11 +20,21 @@ pub struct SectionNames {
   pub text: String
 }
 
+pub type RegisterVariants = Vec<String>;
+
+#[derive(Debug, Clone, Default)]
+pub struct Registers {
+  pub basic: Vec<RegisterVariants>,
+  pub stack_pointer: RegisterVariants,
+  pub base_pointer: RegisterVariants,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Configs {
   pub sizes: Sizes,
   pub sections: SectionNames,
-  pub entry: String
+  pub entry: String,
+  pub registers: Registers,
 }
 
 lazy_static! {

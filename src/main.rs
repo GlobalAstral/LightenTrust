@@ -2,7 +2,7 @@ use std::{env, error::Error, fs::{self, OpenOptions}, io::Write, path::PathBuf};
 
 use toml_edit::Document;
 
-use crate::{constants::{CONFIGS, Configs, DEFAULT_CONFIG, EXTENSION, SectionNames, Sizes}, parser::parser::Parser, tokens::{preprocessor::Preprocessor, tokenizer::Tokenizer}};
+use crate::{constants::{CONFIGS, Configs, DEFAULT_CONFIG, EXTENSION, RegisterVariants, Registers, SectionNames, Sizes}, generator::generator::Generator, parser::parser::Parser, tokens::{preprocessor::Preprocessor, tokenizer::Tokenizer}};
 
 mod constants;
 mod tokens;
@@ -68,6 +68,31 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
       },
       entry: doc.get("entry").and_then(|s| s.as_str()).unwrap_or("main").into(),
+      registers: {
+        let regs = doc.get("registers").and_then(|t| t.as_table()).expect("Cannot get table 'registers'");
+        let basic_regs = regs.get("basic").and_then(|l| l.as_array()).expect("Expected 'basic' array");
+        let basic: Vec<RegisterVariants> = basic_regs.iter().map(|variant| {
+            let array = variant.as_array().expect("Register variants must be an array");
+            array.iter().map(|reg| reg.as_str().expect("Register variant must be string").to_string())
+            .collect::<RegisterVariants>()
+          }
+        ).collect();
+        let base_pointer: RegisterVariants = regs.get("base_pointer").and_then(|t| t.as_array()).expect("Expected 'base_pointer' array")
+          .iter().map(|e| {
+            e.as_str().expect("Register variant must be string").to_string()
+          }).collect();
+        
+        let stack_pointer: RegisterVariants = regs.get("stack_pointer").and_then(|t| t.as_array()).expect("Expected 'stack_pointer' array")
+          .iter().map(|e| {
+            e.as_str().expect("Register variant must be string").to_string()
+          }).collect();
+
+        Registers {
+          basic,
+          base_pointer,
+          stack_pointer
+        }
+      }
     };
   }
 
@@ -94,6 +119,12 @@ fn main() -> Result<(), Box<dyn Error>> {
   nodes.iter().for_each(|n| {
     println!("{}", n);
   });
+
+  let mut generator: Generator = Generator::new(nodes); 
+  println!("\nCOMPILED");
+
+  let ret = generator.compile();
+  println!("{}", ret);
 
   Ok(())
 }

@@ -1,57 +1,78 @@
-use crate::generator::generator::Generator;
+use crate::{constants::get_configs, generator::generator::Generator};
 
 
 impl Generator {
   pub fn mov(&mut self, dst: &str, src: &str) {
-    self.sections.text.push_str(&format!("mov {}, {}", dst, src));
+    self.sections.text.push_str(&format!("{}mov {}, {}\n", "\t".repeat(self.indent_depth), dst, src));
   }
 
   pub fn add(&mut self, dst: &str, src: &str) {
-    self.sections.text.push_str(&format!("add {}, {}", dst, src));
+    self.sections.text.push_str(&format!("{}add {}, {}\n", "\t".repeat(self.indent_depth), dst, src));
   }
   
   pub fn sub(&mut self, dst: &str, src: &str) {
-    self.sections.text.push_str(&format!("sub {}, {}", dst, src));
+    self.sections.text.push_str(&format!("{}sub {}, {}\n", "\t".repeat(self.indent_depth), dst, src));
   }
 
   pub fn cmp(&mut self, a: &str, b: &str) {
-    self.sections.text.push_str(&format!("cmp {}, {}", a, b));
+    self.sections.text.push_str(&format!("{}cmp {}, {}\n", "\t".repeat(self.indent_depth), a, b));
   }
 
   pub fn jmp(&mut self, lbl: &str) {
-    self.sections.text.push_str(&format!("jmp {}", lbl));
+    self.sections.text.push_str(&format!("{}jmp {}\n", "\t".repeat(self.indent_depth), lbl));
   }
 
   pub fn jz(&mut self, lbl: &str) {
-    self.sections.text.push_str(&format!("jz {}", lbl));
+    self.sections.text.push_str(&format!("{}jz {}\n", "\t".repeat(self.indent_depth), lbl));
   }
 
   pub fn jnz(&mut self, lbl: &str) {
-    self.sections.text.push_str(&format!("jnz {}", lbl));
+    self.sections.text.push_str(&format!("{}jnz {}\n", "\t".repeat(self.indent_depth), lbl));
   }
 
   pub fn jg(&mut self, lbl: &str) {
-    self.sections.text.push_str(&format!("jg {}", lbl));
+    self.sections.text.push_str(&format!("{}jg {}\n", "\t".repeat(self.indent_depth), lbl));
   }
 
   pub fn jl(&mut self, lbl: &str) {
-    self.sections.text.push_str(&format!("jl {}", lbl));
+    self.sections.text.push_str(&format!("{}jl {}\n", "\t".repeat(self.indent_depth), lbl));
   }
 
   pub fn jle(&mut self, lbl: &str) {
-    self.sections.text.push_str(&format!("jle {}", lbl));
+    self.sections.text.push_str(&format!("{}jle {}\n", "\t".repeat(self.indent_depth), lbl));
   }
   
   pub fn jge(&mut self, lbl: &str) {
-    self.sections.text.push_str(&format!("jge {}", lbl));
+    self.sections.text.push_str(&format!("{}jge {}\n", "\t".repeat(self.indent_depth), lbl));
   }
 
   pub fn call(&mut self, lbl: &str) {
-    self.sections.text.push_str(&format!("call {}", lbl));
+    self.sections.text.push_str(&format!("{}call {}\n", "\t".repeat(self.indent_depth), lbl));
   }
 
   pub fn ret(&mut self) {
-    self.sections.text.push_str("ret");
+    self.sections.text.push_str(&format!("{}ret\n", "\t".repeat(self.indent_depth)));
+  }
+
+  pub fn push(&mut self, item: &str) {
+    self.sections.text.push_str(&format!("{}push {}\n", "\t".repeat(self.indent_depth), item));
+  }
+
+  pub fn pop(&mut self, loc: &str) {
+    self.sections.text.push_str(&format!("{}pop {}\n", "\t".repeat(self.indent_depth), loc));
+  }
+
+  pub fn create_function(&mut self, name: &str, f: impl FnOnce(&mut Generator)) {
+    let configs = get_configs();
+    self.sections.text.push_str(&format!("{}:\n", name));
+    self.indent_depth += 1;
+    self.push(&configs.registers.base_pointer[0]);
+    self.mov(&configs.registers.base_pointer[0], &configs.registers.stack_pointer[0]);
+    f(self);
+    self.mov(&configs.registers.stack_pointer[0], &configs.registers.base_pointer[0]);
+    self.pop(&configs.registers.base_pointer[0]);
+    self.ret();
+    self.indent_depth -= 1;
   }
 
   fn get_allocation_instruction(&self, size: usize) -> String {
@@ -81,19 +102,18 @@ impl Generator {
   }
 
   pub fn init_alloc<'a>(&mut self, name: &'a str, size: usize, value: &str) -> &'a str {
-    self.sections.data.push_str(&format!("{}: {} {}", name, self.get_allocation_instruction(size), value));
+    self.sections.data.push_str(&format!("{}{}: {} {}", "\t".repeat(self.indent_depth), name, self.get_allocation_instruction(size), value));
     name
   }
 
   pub fn const_alloc<'a>(&mut self, name: &'a str, size: usize, value: &str) -> &'a str {
-    self.sections.read_only.push_str(&format!("{}: {} {}", name, self.get_allocation_instruction(size), value));
+    self.sections.read_only.push_str(&format!("{}{}: {} {}", "\t".repeat(self.indent_depth), name, self.get_allocation_instruction(size), value));
     name
   }
 
   pub fn uninit_alloc<'a>(&mut self, name: &'a str, size: usize) -> &'a str {
     let (ins, sz) = self.get_uninit_alloc_ins(size);
-    self.sections.bss.push_str(&format!("{}: {} {}", name, ins, sz));
+    self.sections.bss.push_str(&format!("{}{}: {} {}", "\t".repeat(self.indent_depth), name, ins, sz));
     name
   }
-
 }

@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use crate::{constants::get_configs, parser::{nodes::Node, utils::Processor}};
 
+static mut LABEL_ID: u64 = 0;
+
 #[derive(Debug, Default)]
 pub struct Sections {
   pub text: String,
@@ -12,20 +14,30 @@ pub struct Sections {
 
 pub enum MemoryLocation {
   Stack(isize),
-
+  Register(String)
 }
 
 pub struct Generator {
   pub base: Processor<Node>,
   pub sections: Sections,
+  pub indent_depth: usize,
 }
 
 impl Generator {
   pub fn new(i: Vec<Node>) -> Self {
     Self {
       base: Processor::new(i, Box::new(|_, _| false) , Box::new(|_| 0), Box::new(|_| PathBuf::new())), 
-      sections: Sections::default()
+      sections: Sections::default(),
+      indent_depth: 0
     }
+  }
+
+  pub fn generate_label(&self) -> String {
+    let temp = unsafe { LABEL_ID };
+    unsafe {
+      LABEL_ID += 1;
+    };
+    format!("L_{}", temp)
   }
 
   fn compile_one(&mut self, node: Node) {
