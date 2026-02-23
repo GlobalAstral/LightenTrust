@@ -97,7 +97,7 @@ fn main() -> Result<(), Box<dyn Error>> {
   }
 
   let content = fs::read_to_string(&input_file)?;
-  let mut tokenizer: Tokenizer = Tokenizer::new(&content, input_file);
+  let mut tokenizer: Tokenizer = Tokenizer::new(&content, input_file.clone());
   let tokens = tokenizer.tokenize();
   println!("TOKENS");
   tokens.iter().for_each(|t| {
@@ -126,5 +126,12 @@ fn main() -> Result<(), Box<dyn Error>> {
   let ret = generator.compile();
   println!("{}", ret);
 
+  {
+    let mut asm_file = OpenOptions::new()
+      .create(true)
+      .write(true)
+      .open(input_file.with_extension("asm"))?;
+    write!(asm_file, "{}", ret)?;
+  }
   Ok(())
 }

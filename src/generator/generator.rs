@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{constants::get_configs, parser::{nodes::Node, utils::Processor}};
+use crate::{constants::get_configs, parser::{expressions::{ExprKind, Expression}, nodes::Node, types::Type, utils::Processor}};
 
 static mut LABEL_ID: u64 = 0;
 
@@ -14,7 +14,18 @@ pub struct Sections {
 
 pub enum MemoryLocation {
   Stack(isize),
-  Register(String)
+  Register(String),
+  Data(String)
+}
+
+impl MemoryLocation {
+  pub fn get(self) -> String {
+    match self {
+      Self::Data(s) => format!("[{}]", s),
+      Self::Register(reg) => reg,
+      Self::Stack(ofs) => format!("[rsp{}{}]", if ofs > 0 {'+'} else {'-'}, ofs.abs())
+    }
+  }
 }
 
 pub struct Generator {
@@ -40,14 +51,28 @@ impl Generator {
     format!("L_{}", temp)
   }
 
-  fn compile_one(&mut self, node: Node) {
-    
+  fn compile_expr(&mut self, expr: &Expression) -> MemoryLocation {
+    match expr.kind {
+      _ => unimplemented!()
+    }
+  }
+
+  fn compile_one(&mut self, node: &Node) {
+    match node {
+      Node::Scope(s) | Node::Packet(s) => {
+        s.iter().for_each(|node| {
+          self.compile_one(node);
+        });
+      },
+
+      _ => unimplemented!()
+    }
   }
 
   pub fn compile(&mut self) -> String {
     while self.base.has_peek() {
       let node = self.base.consume();
-      self.compile_one(node);
+      self.compile_one(&node);
     }
     self.compose()
   }
