@@ -13,6 +13,7 @@ entry = "main"
   char_lit = 1
 
 [registers]
+  biggest_size = 8
   basic = [
     ["rax", "eax", "ax", "al"],
     ["rbx", "ebx", "bx", "bl"],

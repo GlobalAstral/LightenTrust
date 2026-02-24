@@ -116,4 +116,32 @@ impl Generator {
     self.sections.bss.push_str(&format!("{}{}: {} {}", "\t".repeat(self.indent_depth), name, ins, sz));
     name
   }
+
+  pub fn get_unused_register(&mut self, size: usize) -> String {
+    let configs = get_configs();
+    let index: usize = (configs.biggest_size / size).ilog2() as usize;
+    for (i, reg) in configs.registers.basic.iter().enumerate() {
+      if self.used_registers.contains(&i) {
+        continue;
+      }
+      self.used_registers.push(i);
+      return reg[index].clone()
+    }
+    self.base.error(&format!("Cannot find unused register of size {}", size))
+  }
+
+  pub fn free_register(&mut self, reg: String) {
+    let configs = get_configs();
+    if let Some(found) = configs.registers.basic.iter().enumerate().find(|(_, v)| v.contains(&reg)) {
+      self.used_registers.remove(found.0);
+    }
+  }
+
+  pub fn get_ret_reg(&self, size: usize) -> String {
+    let configs = get_configs();
+    let index: usize = (configs.biggest_size / size).ilog2() as usize;
+    configs.registers.basic.get(0).and_then(|t| t.get(index))
+      .unwrap_or_else(|| self.base.error("Cannot get return register")).clone()
+  }
+  
 }

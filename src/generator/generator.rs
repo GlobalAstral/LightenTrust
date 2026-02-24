@@ -32,6 +32,7 @@ pub struct Generator {
   pub base: Processor<Node>,
   pub sections: Sections,
   pub indent_depth: usize,
+  pub used_registers: Vec<usize>,
 }
 
 impl Generator {
@@ -39,7 +40,8 @@ impl Generator {
     Self {
       base: Processor::new(i, Box::new(|_, _| false) , Box::new(|_| 0), Box::new(|_| PathBuf::new())), 
       sections: Sections::default(),
-      indent_depth: 0
+      indent_depth: 0,
+      used_registers: Vec::new(),
     }
   }
 

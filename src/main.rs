@@ -92,6 +92,10 @@ fn main() -> Result<(), Box<dyn Error>> {
           base_pointer,
           stack_pointer
         }
+      },
+      biggest_size: {
+        let regs = doc.get("registers").and_then(|t| t.as_table()).expect("Cannot get table 'registers'");
+        regs.get("biggest_size").and_then(|t| t.as_integer()).unwrap_or(8) as usize
       }
     };
   }

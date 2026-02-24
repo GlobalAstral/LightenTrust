@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::parser::expressions::Expression;
+use crate::{constants::get_configs, parser::expressions::Expression};
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct Variable {
@@ -82,6 +82,20 @@ impl Type {
     match self {
       Self::Alias { is, .. } => is.root(),
       _ => self
+    }
+  }
+
+  pub fn get_size(&self) -> usize {
+    match self.root() {
+      Self::Memory { size, .. } => *size as usize,
+      Self::Array { .. } => get_configs().biggest_size,
+      Self::FunctionPointer { .. } => get_configs().biggest_size,
+      Self::Pointer { .. } => get_configs().biggest_size,
+      Self::Struct { fields } => fields.iter().fold(0, |a, b| a + b.r#type.get_size()),
+      Self::Union { fields } => fields.iter().map(|f| f.r#type.get_size()).max().unwrap(),
+      _ => {
+        unreachable!()
+      }
     }
   }
   

@@ -35,6 +35,7 @@ pub struct Configs {
   pub sections: SectionNames,
   pub entry: String,
   pub registers: Registers,
+  pub biggest_size: usize
 }
 
 lazy_static! {
