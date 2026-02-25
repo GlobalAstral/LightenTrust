@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{constants::get_configs, parser::{expressions::{ExprKind, Expression}, nodes::Node, types::Type, utils::Processor}};
+use crate::{constants::get_configs, parser::{expressions::{ExprKind, Expression}, nodes::{Fnc, Node}, types::Type, utils::Processor}};
 
 static mut LABEL_ID: u64 = 0;
 
@@ -23,7 +23,7 @@ impl MemoryLocation {
     match self {
       Self::Data(s) => format!("[{}]", s),
       Self::Register(reg) => reg,
-      Self::Stack(ofs) => format!("[rsp{}{}]", if ofs > 0 {'+'} else {'-'}, ofs.abs())
+      Self::Stack(ofs) => format!("[{}{}{}]", get_configs().registers.stack_pointer[0], if ofs > 0 {'+'} else {'-'}, ofs.abs())
     }
   }
 }
@@ -33,6 +33,7 @@ pub struct Generator {
   pub sections: Sections,
   pub indent_depth: usize,
   pub used_registers: Vec<usize>,
+  pub functions: Vec<Fnc>
 }
 
 impl Generator {
@@ -42,6 +43,7 @@ impl Generator {
       sections: Sections::default(),
       indent_depth: 0,
       used_registers: Vec::new(),
+      functions: Vec::new()
     }
   }
 
@@ -65,6 +67,14 @@ impl Generator {
         s.iter().for_each(|node| {
           self.compile_one(node);
         });
+      },
+      Node::FncDecl(fnc) => {
+        self.functions.push(fnc.clone());
+        if let Some(body) = &fnc.body {
+          self.create_function(&fnc.name, |this| {
+            this.compile_one(&body);
+          });
+        }
       },
 
       _ => unimplemented!()
