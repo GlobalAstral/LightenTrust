@@ -91,29 +91,29 @@ impl Generator {
 
   fn get_uninit_alloc_ins(&self, size: usize) -> (String, usize) {
     if size % 8 == 0 {
-      (String::from("dq"), size / 8)
+      (String::from("resq"), size / 8)
     } else if size % 4 == 0 {
-      (String::from("dd"), size / 4)
+      (String::from("resd"), size / 4)
     } else if size % 2 == 0 {
-      (String::from("dw"), size / 2)
+      (String::from("resw"), size / 2)
     } else {
-      (String::from("db"), size)
+      (String::from("resb"), size)
     }
   }
 
   pub fn init_alloc<'a>(&mut self, name: &'a str, size: usize, value: &str) -> &'a str {
-    self.sections.data.push_str(&format!("{}{}: {} {}", "\t".repeat(self.indent_depth), name, self.get_allocation_instruction(size), value));
+    self.sections.data.push_str(&format!("{}{}: {} {}\n", "\t".repeat(self.indent_depth), name, self.get_allocation_instruction(size), value));
     name
   }
 
   pub fn const_alloc<'a>(&mut self, name: &'a str, size: usize, value: &str) -> &'a str {
-    self.sections.read_only.push_str(&format!("{}{}: {} {}", "\t".repeat(self.indent_depth), name, self.get_allocation_instruction(size), value));
+    self.sections.read_only.push_str(&format!("{}{}: {} {}\n", "\t".repeat(self.indent_depth), name, self.get_allocation_instruction(size), value));
     name
   }
 
   pub fn uninit_alloc<'a>(&mut self, name: &'a str, size: usize) -> &'a str {
     let (ins, sz) = self.get_uninit_alloc_ins(size);
-    self.sections.bss.push_str(&format!("{}{}: {} {}", "\t".repeat(self.indent_depth), name, ins, sz));
+    self.sections.bss.push_str(&format!("{}{}: {} {}\n", "\t".repeat(self.indent_depth), name, ins, sz));
     name
   }
 

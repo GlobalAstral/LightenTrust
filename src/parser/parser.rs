@@ -17,7 +17,7 @@ pub struct Parser {
   base: Processor<Token>,
   types: HashMap<String, Option<Type>>,
   locals: Vec<Variable>,
-  globals: Vec<Variable>,
+  pub globals: Vec<Variable>,
   scope_depth: usize,
   loop_depth: usize,
   functions: Vec<Fnc>,
