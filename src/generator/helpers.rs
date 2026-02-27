@@ -1,4 +1,4 @@
-use crate::{constants::get_configs, generator::generator::Generator};
+use crate::{constants::get_configs, generator::generator::{Generator, MemoryLocation, StackFrame}};
 
 
 impl Generator {
@@ -62,13 +62,24 @@ impl Generator {
     self.sections.text.push_str(&format!("{}pop {}\n", "\t".repeat(self.indent_depth), loc));
   }
 
-  pub fn create_function(&mut self, name: &str, f: impl FnOnce(&mut Generator)) {
+  pub fn create_function(&mut self, name: &str, f: impl Fn(&mut Generator)) {
     let configs = get_configs();
+    self.stack_frames.push(StackFrame::new());
+    
+    let old_text = self.sections.text.clone();
+    f(self);
+    let total_alloc = self.get_stackframe().next_ofs;
+    self.sections.text = old_text;
+    self.stack_frames.pop();
+    self.stack_frames.push(StackFrame::new());
+
     self.sections.text.push_str(&format!("{}:\n", name));
     self.indent_depth += 1;
     self.push(&configs.registers.base_pointer[0]);
     self.mov(&configs.registers.base_pointer[0], &configs.registers.stack_pointer[0]);
+    self.sub(&configs.registers.stack_pointer[0], &format!("{}", total_alloc.abs()));
     f(self);
+    self.add(&configs.registers.stack_pointer[0], &format!("{}", total_alloc.abs()));
     self.mov(&configs.registers.stack_pointer[0], &configs.registers.base_pointer[0]);
     self.pop(&configs.registers.base_pointer[0]);
     self.ret();
@@ -152,6 +163,28 @@ impl Generator {
     let index: usize = (configs.biggest_size / size).ilog2() as usize;
     configs.registers.return_register.get(index)
       .unwrap_or_else(|| self.base.error("Cannot get return register")).clone()
+  }
+
+  fn align_up(offset: isize, align: isize) -> isize {
+    (offset + align - 1) & !(align - 1)
+  }
+
+  fn get_stackframe(&mut self) -> &mut StackFrame {
+    self.stack_frames.get_mut(self.selected_stack_frame).unwrap()
+  }
+
+  pub fn alloc_var(&mut self, id: u64, size: isize, align: isize, value: &str) {
+    let frame = self.get_stackframe();
+    
+    frame.next_ofs = Generator::align_up(frame.next_ofs, align);
+
+    frame.next_ofs += size;
+    
+    frame.locals.insert(id, frame.next_ofs);
+    
+    let location = MemoryLocation::Stack(frame.next_ofs as isize);
+    
+    self.mov(&location.get(), value);
   }
   
 }

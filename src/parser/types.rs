@@ -88,11 +88,24 @@ impl Type {
   pub fn get_size(&self) -> usize {
     match self.root() {
       Self::Memory { size, .. } => *size as usize,
-      Self::Array { .. } => get_configs().biggest_size,
-      Self::FunctionPointer { .. } => get_configs().biggest_size,
-      Self::Pointer { .. } => get_configs().biggest_size,
+      Self::Array { .. } => get_configs().sizes.pointer as usize,
+      Self::FunctionPointer { .. } => get_configs().sizes.pointer as usize,
+      Self::Pointer { .. } => get_configs().sizes.pointer as usize,
       Self::Struct { fields } => fields.iter().fold(0, |a, b| a + b.r#type.get_size()),
       Self::Union { fields } => fields.iter().map(|f| f.r#type.get_size()).max().unwrap(),
+      _ => {
+        unreachable!()
+      }
+    }
+  }
+
+  pub fn get_align(&self) -> isize {
+    match self.root() {
+      Self::Memory { size, .. } => *size as isize,
+      Self::Array { r#type, ..} => r#type.get_align() ,
+      Self::FunctionPointer { .. } => get_configs().sizes.pointer as isize,
+      Self::Pointer { .. } => get_configs().sizes.pointer as isize,
+      Self::Struct { fields } | Self::Union { fields } => fields.iter().map(|f| f.r#type.get_align()).max().unwrap(),
       _ => {
         unreachable!()
       }

@@ -18,12 +18,27 @@ pub enum MemoryLocation {
   Data(String)
 }
 
+pub struct StackFrame {
+  pub next_ofs: isize,
+  pub locals: HashMap<u64, isize>
+}
+
+impl StackFrame {
+  pub fn new() -> Self {
+    Self { next_ofs: 0, locals: HashMap::new() }
+  }
+}
+
 impl MemoryLocation {
   pub fn get(self) -> String {
     match self {
       Self::Data(s) => format!("[{}]", s),
       Self::Register(reg) => reg,
-      Self::Stack(ofs) => format!("[{}{}{}]", get_configs().registers.stack_pointer[0], if ofs > 0 {'+'} else {'-'}, ofs.abs())
+      Self::Stack(ofs) => if ofs == 0 {
+        format!("[{}]", get_configs().registers.base_pointer[0])
+      } else {
+        format!("[{}{}{}]", get_configs().registers.base_pointer[0], if ofs > 0 {'+'} else {'-'}, ofs.abs())
+      }
     }
   }
 }
@@ -35,7 +50,9 @@ pub struct Generator {
   pub used_registers: Vec<usize>,
   pub functions: Vec<Fnc>,
   pub globals: Vec<Variable>,
-  pub vars: HashMap<u64, Option<Expression>>
+  pub vars: HashMap<u64, Option<Expression>>,
+  pub stack_frames: Vec<StackFrame>,
+  pub selected_stack_frame: usize,
 }
 
 impl Generator {
@@ -47,7 +64,9 @@ impl Generator {
       used_registers: Vec::new(),
       functions: Vec::new(),
       globals: globals,
-      vars: HashMap::new()
+      vars: HashMap::new(),
+      stack_frames: Vec::new(),
+      selected_stack_frame: 0,
     }
   }
 
@@ -123,7 +142,12 @@ impl Generator {
             self.vars.insert(var.id, None);
           }
         } else {
-          unimplemented!("Not global variable declaration is not implemented");
+          let val = if let Some(expr) = expr {
+            self.compile_expr(expr).get()
+          } else {
+            String::from("0")
+          };
+          self.alloc_var(var.id, -(var.r#type.get_size() as isize), var.r#type.get_align(), &val);
         }
       }
       _ => unimplemented!()
