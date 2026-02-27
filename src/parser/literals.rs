@@ -1,6 +1,6 @@
 use std::{error::Error, fmt::Display};
 
-use crate::{constants::get_configs, parser::types::{MemoryKind, Type}};
+use crate::{constants::get_configs, parser::{expressions::{ExprKind, Expression}, types::{MemoryKind, Type}}};
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum Literal {
@@ -45,7 +45,10 @@ impl Literal {
     match self {
       Self::Integer(_) => Type::Memory { size: get_configs().sizes.intl_size, kind: MemoryKind::Unsigned },
       Self::Float(_) => Type::Memory { size: get_configs().sizes.floatl_size, kind: MemoryKind::Float },
-      Self::String(s) => Type::Memory { size: (s.len() as u64) * get_configs().sizes.charl_size, kind: MemoryKind::Unsigned },
+      Self::String(s) => Type::Array { size: Box::new(Expression {
+        kind: ExprKind::Literal(Literal::Integer(s.len() as u64)), 
+        return_type: Type::Memory { size: get_configs().sizes.intl_size, kind: MemoryKind::Unsigned }
+      }), r#type: Box::new(Type::Memory { size: get_configs().sizes.charl_size, kind: MemoryKind::Unsigned })},
       Self::Char(_) => Type::Memory { size: get_configs().sizes.charl_size, kind: MemoryKind::Unsigned }
     }
   }

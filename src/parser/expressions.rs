@@ -83,12 +83,12 @@ impl Display for Expression {
 }
 
 impl Expression {
-  pub fn is_constant(&self, vars: &Vec<Variable>) -> bool {
+  pub fn is_evaluable(&self, vars: &Vec<Variable>) -> bool {
     match &self.kind {
       ExprKind::Literal(_) => true,
-      ExprKind::Cast { base, .. } => base.is_constant(vars),
+      ExprKind::Cast { base, .. } => base.is_evaluable(vars),
       ExprKind::Variable(id) => {
-        vars.iter().find(|v| &v.id == id).is_some_and(|temp| temp.global && !temp.mutable)
+        vars.iter().find(|v| &v.id == id).is_some_and(|temp| temp.global)
       },
       ExprKind::SizeOf(_) => true,
       _ => false

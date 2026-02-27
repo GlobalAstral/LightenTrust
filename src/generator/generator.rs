@@ -99,15 +99,24 @@ impl Generator {
       Node::VariableDecl { var, expr } => {
         if var.global {
           if let Some(expr) = expr {
-            if !expr.is_constant(&self.globals) {
+            if !expr.is_evaluable(&self.globals) {
               self.base.error(&format!("Expression {} is not constant", expr));
             }
-            match self.evaluate(expr) {
-              Literal::Char(c) => self.init_alloc(&var.name, var.r#type.get_size(), &format!("{}", c)),
-              Literal::Integer(i) => self.init_alloc(&var.name, var.r#type.get_size(), &format!("{}", i)),
-              Literal::Float(f) => self.init_alloc(&var.name, var.r#type.get_size(), &format!("{}", f.to_bits())),
-              Literal::String(s) => self.init_alloc(&var.name, var.r#type.get_size() * s.len(), &format!("\"{}\"", s)),
-            };
+            if var.mutable {
+              match self.evaluate(expr) {
+                Literal::Char(c) => self.init_alloc(&var.name, var.r#type.get_size(), &format!("{}", c)),
+                Literal::Integer(i) => self.init_alloc(&var.name, var.r#type.get_size(), &format!("{}", i)),
+                Literal::Float(f) => self.init_alloc(&var.name, var.r#type.get_size(), &format!("{}", f.to_bits())),
+                Literal::String(s) => self.alloc_str(&var.name, &s),
+              };
+            } else {
+              match self.evaluate(expr) {
+                Literal::Char(c) => self.const_alloc(&var.name, var.r#type.get_size(), &format!("{}", c)),
+                Literal::Integer(i) => self.const_alloc(&var.name, var.r#type.get_size(), &format!("{}", i)),
+                Literal::Float(f) => self.const_alloc(&var.name, var.r#type.get_size(), &format!("{}", f.to_bits())),
+                Literal::String(s) => self.alloc_str_const(&var.name, &s),
+              };
+            }
             self.vars.insert(var.id, Some(expr.clone()));
           } else {
             self.uninit_alloc(&var.name, var.r#type.get_size());

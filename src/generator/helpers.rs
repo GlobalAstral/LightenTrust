@@ -117,6 +117,16 @@ impl Generator {
     name
   }
 
+  pub fn alloc_str<'a>(&mut self, name: &'a str, s: &str) -> &'a str {
+    self.sections.data.push_str(&format!("{}{}: db \"{}\"\n", "\t".repeat(self.indent_depth), name, s));
+    name
+  }
+
+  pub fn alloc_str_const<'a>(&mut self, name: &'a str, s: &str) -> &'a str {
+    self.sections.read_only.push_str(&format!("{}{}: db \"{}\"\n", "\t".repeat(self.indent_depth), name, s));
+    name
+  }
+
   pub fn get_unused_register(&mut self, size: usize) -> String {
     let configs = get_configs();
     let index: usize = (configs.biggest_size / size).ilog2() as usize;
