@@ -52,7 +52,7 @@ pub struct Generator {
   pub globals: Vec<Variable>,
   pub vars: HashMap<u64, Option<Expression>>,
   pub stack_frames: Vec<StackFrame>,
-  pub selected_stack_frame: usize,
+  pub selected_stack_frame: isize,
 }
 
 impl Generator {
@@ -66,7 +66,7 @@ impl Generator {
       globals: globals,
       vars: HashMap::new(),
       stack_frames: Vec::new(),
-      selected_stack_frame: 0,
+      selected_stack_frame: -1,
     }
   }
 

@@ -65,6 +65,7 @@ impl Generator {
   pub fn create_function(&mut self, name: &str, f: impl Fn(&mut Generator)) {
     let configs = get_configs();
     self.stack_frames.push(StackFrame::new());
+    self.selected_stack_frame += 1;
     
     let old_text = self.sections.text.clone();
     f(self);
@@ -83,6 +84,8 @@ impl Generator {
     self.mov(&configs.registers.stack_pointer[0], &configs.registers.base_pointer[0]);
     self.pop(&configs.registers.base_pointer[0]);
     self.ret();
+    self.stack_frames.pop();
+    self.selected_stack_frame -= 1;
     self.indent_depth -= 1;
   }
 
@@ -170,7 +173,10 @@ impl Generator {
   }
 
   fn get_stackframe(&mut self) -> &mut StackFrame {
-    self.stack_frames.get_mut(self.selected_stack_frame).unwrap()
+    if self.selected_stack_frame < 0 {
+      self.base.error("No stack-frame exists");
+    }
+    self.stack_frames.get_mut(self.selected_stack_frame as usize).unwrap()
   }
 
   pub fn alloc_var(&mut self, id: u64, size: isize, align: isize, value: &str) {
