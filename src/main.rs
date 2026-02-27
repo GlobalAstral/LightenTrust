@@ -87,10 +87,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             e.as_str().expect("Register variant must be string").to_string()
           }).collect();
 
+        let return_register: RegisterVariants = regs.get("return_register").and_then(|t| t.as_array()).expect("Expected 'return_register' array")
+        .iter().map(|e| {
+          e.as_str().expect("Register variant must be string").to_string()
+        }).collect();
+
         Registers {
           basic,
           base_pointer,
-          stack_pointer
+          stack_pointer,
+          return_register
         }
       },
       biggest_size: {

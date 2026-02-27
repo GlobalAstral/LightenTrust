@@ -14,8 +14,10 @@ entry = "main"
 
 [registers]
   biggest_size = 8
+  
+  return_register = ["rax", "eax", "ax", "al"]
+
   basic = [
-    ["rax", "eax", "ax", "al"],
     ["rbx", "ebx", "bx", "bl"],
     ["rcx", "ecx", "cx", "cl"],
     ["rdx", "edx", "dx", "dl"],
@@ -33,3 +35,4 @@ entry = "main"
 
   stack_pointer = ["rsp", "esp", "sp", "spl"]
   base_pointer = ["rbp", "ebp", "bp", "bpl"]
+  

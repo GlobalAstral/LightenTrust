@@ -150,7 +150,7 @@ impl Generator {
   pub fn get_ret_reg(&self, size: usize) -> String {
     let configs = get_configs();
     let index: usize = (configs.biggest_size / size).ilog2() as usize;
-    configs.registers.basic.get(0).and_then(|t| t.get(index))
+    configs.registers.return_register.get(index)
       .unwrap_or_else(|| self.base.error("Cannot get return register")).clone()
   }
   
