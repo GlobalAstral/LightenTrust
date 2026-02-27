@@ -124,7 +124,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("{}", n);
   });
 
-  let mut generator: Generator = Generator::new(nodes); 
+  let mut generator: Generator = Generator::new(nodes, parser.globals); 
   println!("\nCOMPILED");
 
   let ret = generator.compile();

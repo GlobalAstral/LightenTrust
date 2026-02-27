@@ -1,6 +1,6 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
-use crate::{constants::get_configs, parser::{expressions::{ExprKind, Expression}, nodes::{Fnc, Node}, types::Type, utils::Processor}};
+use crate::{constants::get_configs, parser::{expressions::{ExprKind, Expression}, literals::Literal, nodes::{Fnc, Node}, types::{Type, Variable}, utils::Processor}};
 
 static mut LABEL_ID: u64 = 0;
 
@@ -33,17 +33,21 @@ pub struct Generator {
   pub sections: Sections,
   pub indent_depth: usize,
   pub used_registers: Vec<usize>,
-  pub functions: Vec<Fnc>
+  pub functions: Vec<Fnc>,
+  pub globals: Vec<Variable>,
+  pub vars: HashMap<u64, Option<Expression>>
 }
 
 impl Generator {
-  pub fn new(i: Vec<Node>) -> Self {
+  pub fn new(i: Vec<Node>, globals: Vec<Variable>) -> Self {
     Self {
       base: Processor::new(i, Box::new(|_, _| false) , Box::new(|_| 0), Box::new(|_| PathBuf::new())), 
       sections: Sections::default(),
       indent_depth: 0,
       used_registers: Vec::new(),
-      functions: Vec::new()
+      functions: Vec::new(),
+      globals: globals,
+      vars: HashMap::new()
     }
   }
 
@@ -58,6 +62,22 @@ impl Generator {
   fn compile_expr(&mut self, expr: &Expression) -> MemoryLocation {
     match expr.kind {
       _ => unimplemented!()
+    }
+  }
+
+  fn evaluate(&self, expr: &Expression) -> Literal {
+    match &expr.kind {
+      ExprKind::Literal(lit) => lit.clone(),
+      ExprKind::Cast { base, ..} => self.evaluate(&base),
+      ExprKind::Variable(var) => {
+        if let Some(ex) = self.vars.get(&var).unwrap() {
+          self.evaluate(ex)
+        } else {
+          self.base.error(&format!("Variable of id {} has no value", var));
+        }
+      },
+      ExprKind::SizeOf(t) => Literal::Integer(t.return_type.get_size() as u64),
+      _ => self.base.error(&format!("Expression {} is not evaluable at compiletime", expr))
     }
   }
 
@@ -76,7 +96,27 @@ impl Generator {
           });
         }
       },
-
+      Node::VariableDecl { var, expr } => {
+        if var.global {
+          if let Some(expr) = expr {
+            if !expr.is_constant(&self.globals) {
+              self.base.error(&format!("Expression {} is not constant", expr));
+            }
+            match self.evaluate(expr) {
+              Literal::Char(c) => self.init_alloc(&var.name, var.r#type.get_size(), &format!("{}", c)),
+              Literal::Integer(i) => self.init_alloc(&var.name, var.r#type.get_size(), &format!("{}", i)),
+              Literal::Float(f) => self.init_alloc(&var.name, var.r#type.get_size(), &format!("{}", f.to_bits())),
+              Literal::String(s) => self.init_alloc(&var.name, var.r#type.get_size() * s.len(), &format!("\"{}\"", s)),
+            };
+            self.vars.insert(var.id, Some(expr.clone()));
+          } else {
+            self.uninit_alloc(&var.name, var.r#type.get_size());
+            self.vars.insert(var.id, None);
+          }
+        } else {
+          unimplemented!("Not global variable declaration is not implemented");
+        }
+      }
       _ => unimplemented!()
     }
   }

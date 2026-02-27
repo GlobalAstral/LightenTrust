@@ -82,6 +82,20 @@ impl Display for Expression {
   }
 }
 
+impl Expression {
+  pub fn is_constant(&self, vars: &Vec<Variable>) -> bool {
+    match &self.kind {
+      ExprKind::Literal(_) => true,
+      ExprKind::Cast { base, .. } => base.is_constant(vars),
+      ExprKind::Variable(id) => {
+        vars.iter().find(|v| &v.id == id).is_some_and(|temp| temp.global && !temp.mutable)
+      },
+      ExprKind::SizeOf(_) => true,
+      _ => false
+    }
+  }
+}
+
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct Expression {
   pub kind: ExprKind,
