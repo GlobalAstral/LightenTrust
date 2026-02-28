@@ -4,7 +4,7 @@ use crate::{constants::get_configs, parser::{expressions::{ExprKind, Expression}
 
 static mut LABEL_ID: u64 = 0;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Sections {
   pub text: String,
   pub data: String,
@@ -15,7 +15,8 @@ pub struct Sections {
 pub enum MemoryLocation {
   Stack(isize),
   Register(String),
-  Data(String)
+  Data(String),
+  Value(String)
 }
 
 pub struct StackFrame {
@@ -38,7 +39,8 @@ impl MemoryLocation {
         format!("[{}]", get_configs().registers.base_pointer[0])
       } else {
         format!("[{}{}{}]", get_configs().registers.base_pointer[0], if ofs > 0 {'+'} else {'-'}, ofs.abs())
-      }
+      },
+      Self::Value(val) => val
     }
   }
 }
@@ -79,7 +81,22 @@ impl Generator {
   }
 
   fn compile_expr(&mut self, expr: &Expression) -> MemoryLocation {
-    match expr.kind {
+    match &expr.kind {
+      ExprKind::Literal(lit) => match lit {
+        Literal::Char(ch) => MemoryLocation::Value(ch.to_string()),
+        Literal::Integer(i) => MemoryLocation::Value(i.to_string()),
+        Literal::String(s) => {
+          let lbl = self.generate_label();
+          self.alloc_str(&lbl, &s);
+          MemoryLocation::Data(lbl.to_string())
+        },
+        Literal::Float(f) => {
+          let lbl = self.generate_label();
+          self.const_alloc(&lbl, get_configs().sizes.floatl_size as usize, &f.to_bits().to_string());
+          MemoryLocation::Data(lbl.to_string())
+        }
+      },
+
       _ => unimplemented!()
     }
   }
@@ -149,7 +166,8 @@ impl Generator {
           };
           self.alloc_var(var.id, -(var.r#type.get_size() as isize), var.r#type.get_align(), &val);
         }
-      }
+      },
+
       _ => unimplemented!()
     }
   }

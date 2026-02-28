@@ -139,6 +139,7 @@ fn main() -> Result<(), Box<dyn Error>> {
   {
     let mut asm_file = OpenOptions::new()
       .create(true)
+      .truncate(true)
       .write(true)
       .open(input_file.with_extension("asm"))?;
     write!(asm_file, "{}", ret)?;

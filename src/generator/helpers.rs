@@ -67,10 +67,10 @@ impl Generator {
     self.stack_frames.push(StackFrame::new());
     self.selected_stack_frame += 1;
     
-    let old_text = self.sections.text.clone();
+    let old_sections = self.sections.clone();
     f(self);
     let total_alloc = self.get_stackframe().next_ofs;
-    self.sections.text = old_text;
+    self.sections = old_sections;
     self.stack_frames.pop();
     self.stack_frames.push(StackFrame::new());
 
