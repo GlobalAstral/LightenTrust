@@ -55,6 +55,7 @@ pub struct Generator {
   pub vars: HashMap<u64, Option<Expression>>,
   pub stack_frames: Vec<StackFrame>,
   pub selected_stack_frame: isize,
+  pub free_cache: Vec<usize>,
 }
 
 impl Generator {
@@ -69,6 +70,7 @@ impl Generator {
       vars: HashMap::new(),
       stack_frames: Vec::new(),
       selected_stack_frame: -1,
+      free_cache: Vec::new()
     }
   }
 
@@ -87,13 +89,19 @@ impl Generator {
         Literal::Integer(i) => MemoryLocation::Value(i.to_string()),
         Literal::String(s) => {
           let lbl = self.generate_label();
-          self.alloc_str(&lbl, &s);
-          MemoryLocation::Data(lbl.to_string())
+          self.alloc_str_const(&lbl, &s);
+          let reg = self.get_ret_reg(get_configs().sizes.pointer as usize);
+          self.lea(&reg, &format!("[rel {}]", lbl));
+          MemoryLocation::Register(reg)
         },
         Literal::Float(f) => {
           let lbl = self.generate_label();
-          self.const_alloc(&lbl, get_configs().sizes.floatl_size as usize, &f.to_bits().to_string());
-          MemoryLocation::Data(lbl.to_string())
+          let fsize = get_configs().sizes.floatl_size as usize;
+          self.const_alloc(&lbl, fsize, &f.to_string());
+          let (simd, id) = self.get_unused_register(fsize, true);
+          self.free_cache.push(id);
+          self.movss(&simd, &format!("[{}]", lbl));
+          MemoryLocation::Register(simd)
         }
       },
 
@@ -165,6 +173,7 @@ impl Generator {
             String::from("0")
           };
           self.alloc_var(var.id, -(var.r#type.get_size() as isize), var.r#type.get_align(), &val);
+          self.free_cache();
         }
       },
 
@@ -182,7 +191,8 @@ impl Generator {
 
   fn compose(&self) -> String {
     let configs = &get_configs();
-    format!("global main\nsection {}\n{}\n\nsection {}\n{}\n\nsection {}\n{}\n\nsection {}\n{}\n",
+    format!("global {}\nsection {}\n{}\n\nsection {}\n{}\n\nsection {}\n{}\n\nsection {}\n{}\n",
+      configs.entry,
       configs.sections.text,
       self.sections.text, 
       configs.sections.data,

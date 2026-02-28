@@ -25,6 +25,7 @@ pub type RegisterVariants = Vec<String>;
 #[derive(Debug, Clone, Default)]
 pub struct Registers {
   pub basic: Vec<RegisterVariants>,
+  pub simds: Vec<RegisterVariants>,
   pub stack_pointer: RegisterVariants,
   pub base_pointer: RegisterVariants,
   pub return_register: RegisterVariants,
@@ -36,7 +37,9 @@ pub struct Configs {
   pub sections: SectionNames,
   pub entry: String,
   pub registers: Registers,
-  pub biggest_size: usize
+  pub biggest_size: usize,
+  pub biggest_simd: usize,
+  pub instruction_suffix: String,
 }
 
 lazy_static! {

@@ -6,6 +6,14 @@ impl Generator {
     self.sections.text.push_str(&format!("{}mov {}, {}\n", "\t".repeat(self.indent_depth), dst, src));
   }
 
+  pub fn movss(&mut self, dst: &str, src: &str) {
+    self.sections.text.push_str(&format!("{}mov{} {}, {}\n", "\t".repeat(self.indent_depth), get_configs().instruction_suffix, dst, src));
+  }
+
+  pub fn lea(&mut self, dst: &str, src: &str) {
+    self.sections.text.push_str(&format!("{}lea {}, {}\n", "\t".repeat(self.indent_depth), dst, src));
+  }
+
   pub fn add(&mut self, dst: &str, src: &str) {
     self.sections.text.push_str(&format!("{}add {}, {}\n", "\t".repeat(self.indent_depth), dst, src));
   }
@@ -141,23 +149,26 @@ impl Generator {
     name
   }
 
-  pub fn get_unused_register(&mut self, size: usize) -> String {
+  pub fn get_unused_register(&mut self, size: usize, simd: bool) -> (String, usize) {
     let configs = get_configs();
-    let index: usize = (configs.biggest_size / size).ilog2() as usize;
-    for (i, reg) in configs.registers.basic.iter().enumerate() {
+    let biggest = if simd {configs.biggest_simd} else {configs.biggest_size};
+    let index: usize = (biggest / size).ilog2() as usize;
+    let mut search = configs.registers.basic.clone();
+    search.append(&mut configs.registers.simds.clone());
+    for (i, reg) in search.iter().enumerate().skip(if simd { configs.registers.basic.len() } else {0}) {
       if self.used_registers.contains(&i) {
         continue;
       }
       self.used_registers.push(i);
-      return reg[index].clone()
+      let temp = index.min(reg.len()-1);
+      return (reg.get(temp).unwrap().clone(), temp)
     }
     self.base.error(&format!("Cannot find unused register of size {}", size))
   }
 
-  pub fn free_register(&mut self, reg: String) {
-    let configs = get_configs();
-    if let Some(found) = configs.registers.basic.iter().enumerate().find(|(_, v)| v.contains(&reg)) {
-      self.used_registers.remove(found.0);
+  pub fn free_register(&mut self, reg: usize) {
+    if reg < self.used_registers.len() {
+      self.used_registers.remove(reg);
     }
   }
 
@@ -192,5 +203,13 @@ impl Generator {
     
     self.mov(&location.get(), value);
   }
-  
+
+  pub fn free_cache(&mut self) {
+    let temp = std::mem::take(&mut self.free_cache);
+    for ele in &temp {
+      self.free_register(*ele);
+    }
+    self.free_cache = temp;
+    self.free_cache.clear();
+  }
 }
