@@ -175,8 +175,15 @@ impl Generator {
   pub fn get_ret_reg(&self, size: usize) -> String {
     let configs = get_configs();
     let index: usize = (configs.biggest_size / size).ilog2() as usize;
-    configs.registers.return_register.get(index)
+    configs.registers.return_register.get(index.min(configs.registers.return_register.len()-1))
       .unwrap_or_else(|| self.base.error("Cannot get return register")).clone()
+  }
+
+  pub fn get_ret_simd(&self, size: usize) -> String {
+    let configs = get_configs();
+    let index: usize = (configs.biggest_simd / size).ilog2() as usize;
+    configs.registers.return_simd.get(index.min(configs.registers.return_simd.len()-1))
+      .unwrap_or_else(|| self.base.error("Cannot get return simd")).clone()
   }
 
   fn align_up(offset: isize, align: isize) -> isize {

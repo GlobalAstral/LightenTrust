@@ -29,6 +29,7 @@ pub struct Registers {
   pub stack_pointer: RegisterVariants,
   pub base_pointer: RegisterVariants,
   pub return_register: RegisterVariants,
+  pub return_simd: RegisterVariants,
 }
 
 #[derive(Debug, Clone, Default)]

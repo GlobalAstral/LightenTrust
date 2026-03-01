@@ -99,12 +99,18 @@ fn main() -> Result<(), Box<dyn Error>> {
           e.as_str().expect("Register variant must be string").to_string()
         }).collect();
 
+        let return_simd: RegisterVariants = regs.get("return_simd").and_then(|t| t.as_array()).expect("Expected 'return_simd' array")
+        .iter().map(|e| {
+          e.as_str().expect("Register variant must be string").to_string()
+        }).collect();
+
         Registers {
           basic,
           simds,
           base_pointer,
           stack_pointer,
-          return_register
+          return_register,
+          return_simd
         }
       },
       biggest_size: {

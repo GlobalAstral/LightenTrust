@@ -98,8 +98,7 @@ impl Generator {
           let lbl = self.generate_label();
           let fsize = get_configs().sizes.floatl_size as usize;
           self.const_alloc(&lbl, fsize, &f.to_string());
-          let (simd, id) = self.get_unused_register(fsize, true);
-          self.free_cache.push(id);
+          let simd = self.get_ret_simd(fsize);
           self.movss(&simd, &format!("[{}]", lbl));
           MemoryLocation::Register(simd)
         }
