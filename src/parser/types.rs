@@ -160,4 +160,11 @@ impl Type {
 
     kinds_compatible && s1 <= s2
   }
+
+  pub fn is_float(&self) -> bool {
+    match self.root() {
+      Self::Memory { kind, .. } => matches!(kind, MemoryKind::Float),
+      _ => false
+    }
+  }
 }

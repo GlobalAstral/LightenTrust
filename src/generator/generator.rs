@@ -82,27 +82,31 @@ impl Generator {
     format!("L_{}", temp)
   }
 
+  fn compile_literal(&mut self, lit: &Literal) -> MemoryLocation {
+    match lit {
+      Literal::Char(ch) => MemoryLocation::Value(ch.to_string()),
+      Literal::Integer(i) => MemoryLocation::Value(i.to_string()),
+      Literal::String(s) => {
+        let lbl = self.generate_label();
+        self.alloc_str_const(&lbl, &s);
+        let reg = self.get_ret_reg(get_configs().sizes.pointer as usize);
+        self.lea(&reg, &format!("[rel {}]", lbl));
+        MemoryLocation::Register(reg)
+      },
+      Literal::Float(f) => {
+        let lbl = self.generate_label();
+        let fsize = get_configs().sizes.floatl_size as usize;
+        self.const_alloc(&lbl, fsize, &f.to_string());
+        let simd = self.get_ret_simd(fsize);
+        self.movss(&simd, &format!("[{}]", lbl));
+        MemoryLocation::Register(simd)
+      }
+    }
+  }
+
   fn compile_expr(&mut self, expr: &Expression) -> MemoryLocation {
     match &expr.kind {
-      ExprKind::Literal(lit) => match lit {
-        Literal::Char(ch) => MemoryLocation::Value(ch.to_string()),
-        Literal::Integer(i) => MemoryLocation::Value(i.to_string()),
-        Literal::String(s) => {
-          let lbl = self.generate_label();
-          self.alloc_str_const(&lbl, &s);
-          let reg = self.get_ret_reg(get_configs().sizes.pointer as usize);
-          self.lea(&reg, &format!("[rel {}]", lbl));
-          MemoryLocation::Register(reg)
-        },
-        Literal::Float(f) => {
-          let lbl = self.generate_label();
-          let fsize = get_configs().sizes.floatl_size as usize;
-          self.const_alloc(&lbl, fsize, &f.to_string());
-          let simd = self.get_ret_simd(fsize);
-          self.movss(&simd, &format!("[{}]", lbl));
-          MemoryLocation::Register(simd)
-        }
-      },
+      ExprKind::Literal(lit) => self.compile_literal(lit),
 
       _ => unimplemented!()
     }
@@ -124,18 +128,18 @@ impl Generator {
     }
   }
 
-  fn compile_one(&mut self, node: &Node) {
+  fn compile_one(&mut self, node: &Node, total_allocated: isize) {
     match node {
       Node::Scope(s) | Node::Packet(s) => {
         s.iter().for_each(|node| {
-          self.compile_one(node);
+          self.compile_one(node, total_allocated);
         });
       },
       Node::FncDecl(fnc) => {
         self.functions.push(fnc.clone());
         if let Some(body) = &fnc.body {
-          self.create_function(&fnc.name, |this| {
-            this.compile_one(&body);
+          self.create_function(&fnc.name, |this, total_alloc| {
+            this.compile_one(&body, total_alloc);
           });
         }
       },
@@ -175,6 +179,44 @@ impl Generator {
           self.free_cache();
         }
       },
+      Node::Return(ex) => {
+        let isfloat = ex.return_type.is_float();
+        let ret = if isfloat {
+          self.get_ret_simd(ex.return_type.get_size())
+        } else {
+          self.get_ret_reg(ex.return_type.get_size())
+        };
+        if ex.is_evaluable(&self.globals) {
+          let lit = self.evaluate(ex);
+          let location = self.compile_literal(&lit);
+          if isfloat {
+            self.movss(&ret, &location.get());
+          } else {
+            self.mov(&ret, &location.get());
+          }
+          let configs = get_configs();
+          self.add(&configs.registers.stack_pointer[0], &format!("{}", total_allocated.abs()));
+          self.mov(&configs.registers.stack_pointer[0], &configs.registers.base_pointer[0]);
+          self.pop(&configs.registers.base_pointer[0]);
+          self.ret();
+        } else {
+          let (temp, tempid) = self.get_unused_register(ex.return_type.get_size(), isfloat);
+          let location = self.compile_expr(ex);
+          if isfloat {
+            self.movss(&temp, &location.get());
+            self.movss(&ret, &temp);
+          } else {
+            self.mov(&temp, &location.get());
+            self.mov(&ret, &temp);
+          }
+          self.free_register(tempid);
+          let configs = get_configs();
+          self.add(&configs.registers.stack_pointer[0], &format!("{}", total_allocated.abs()));
+          self.mov(&configs.registers.stack_pointer[0], &configs.registers.base_pointer[0]);
+          self.pop(&configs.registers.base_pointer[0]);
+          self.ret();
+        }
+      }
 
       _ => unimplemented!()
     }
@@ -183,7 +225,7 @@ impl Generator {
   pub fn compile(&mut self) -> String {
     while self.base.has_peek() {
       let node = self.base.consume();
-      self.compile_one(&node);
+      self.compile_one(&node, 0);
     }
     self.compose()
   }

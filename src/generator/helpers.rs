@@ -70,13 +70,13 @@ impl Generator {
     self.sections.text.push_str(&format!("{}pop {}\n", "\t".repeat(self.indent_depth), loc));
   }
 
-  pub fn create_function(&mut self, name: &str, f: impl Fn(&mut Generator)) {
+  pub fn create_function(&mut self, name: &str, f: impl Fn(&mut Generator, isize)) {
     let configs = get_configs();
     self.stack_frames.push(StackFrame::new());
     self.selected_stack_frame += 1;
     
     let old_sections = self.sections.clone();
-    f(self);
+    f(self, 0);
     let total_alloc = self.get_stackframe().next_ofs;
     self.sections = old_sections;
     self.stack_frames.pop();
@@ -87,7 +87,7 @@ impl Generator {
     self.push(&configs.registers.base_pointer[0]);
     self.mov(&configs.registers.base_pointer[0], &configs.registers.stack_pointer[0]);
     self.sub(&configs.registers.stack_pointer[0], &format!("{}", total_alloc.abs()));
-    f(self);
+    f(self, total_alloc);
     self.add(&configs.registers.stack_pointer[0], &format!("{}", total_alloc.abs()));
     self.mov(&configs.registers.stack_pointer[0], &configs.registers.base_pointer[0]);
     self.pop(&configs.registers.base_pointer[0]);
