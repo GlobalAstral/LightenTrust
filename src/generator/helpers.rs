@@ -197,7 +197,7 @@ impl Generator {
     self.stack_frames.get_mut(self.selected_stack_frame as usize).unwrap()
   }
 
-  pub fn alloc_var(&mut self, id: u64, size: isize, align: isize, value: &str) {
+  pub fn alloc_var(&mut self, id: u64, size: isize, align: isize, value: &str) -> MemoryLocation {
     let frame = self.get_stackframe();
     
     frame.next_ofs = Generator::align_up(frame.next_ofs, align);
@@ -209,6 +209,7 @@ impl Generator {
     let location = MemoryLocation::Stack(frame.next_ofs as isize);
     
     self.mov(&location.get(), value);
+    return location;
   }
 
   pub fn free_cache(&mut self) {

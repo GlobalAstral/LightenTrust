@@ -12,6 +12,7 @@ pub struct Sections {
   pub read_only: String,
 }
 
+#[derive(Debug, Clone)]
 pub enum MemoryLocation {
   Stack(isize),
   Register(String),
@@ -31,18 +32,25 @@ impl StackFrame {
 }
 
 impl MemoryLocation {
-  pub fn get(self) -> String {
+  pub fn get(&self) -> String {
     match self {
       Self::Data(s) => format!("[{}]", s),
-      Self::Register(reg) => reg,
-      Self::Stack(ofs) => if ofs == 0 {
+      Self::Register(reg) => reg.clone(),
+      Self::Stack(ofs) => if *ofs == 0 {
         format!("[{}]", get_configs().registers.base_pointer[0])
       } else {
-        format!("[{}{}{}]", get_configs().registers.base_pointer[0], if ofs > 0 {'+'} else {'-'}, ofs.abs())
+        format!("[{}{}{}]", get_configs().registers.base_pointer[0], if *ofs > 0 {'+'} else {'-'}, ofs.abs())
       },
-      Self::Value(val) => val
+      Self::Value(val) => val.clone()
     }
   }
+}
+
+#[derive(Debug, Clone)]
+pub struct VarContext {
+  expr: Option<Expression>,
+  location: MemoryLocation,
+  r#type: Type
 }
 
 pub struct Generator {
@@ -52,7 +60,7 @@ pub struct Generator {
   pub used_registers: Vec<usize>,
   pub functions: Vec<Fnc>,
   pub globals: Vec<Variable>,
-  pub vars: HashMap<u64, Option<Expression>>,
+  pub vars: HashMap<u64, VarContext>,
   pub stack_frames: Vec<StackFrame>,
   pub selected_stack_frame: isize,
   pub free_cache: Vec<usize>,
@@ -107,7 +115,20 @@ impl Generator {
   fn compile_expr(&mut self, expr: &Expression) -> MemoryLocation {
     match &expr.kind {
       ExprKind::Literal(lit) => self.compile_literal(lit),
+      ExprKind::Variable(id) => {
+        let context = self.vars.get(id).unwrap().clone();
+        let isfloat = context.r#type.is_float();
+        let (reg, regid) = self.get_unused_register(context.r#type.get_size(), isfloat);
 
+        if isfloat {
+          self.movss(&reg, &context.location.get());
+        } else {
+          self.mov(&reg, &context.location.get());
+        }
+
+        self.free_cache.push(regid);
+        MemoryLocation::Register(reg)
+      }
       _ => unimplemented!()
     }
   }
@@ -117,8 +138,9 @@ impl Generator {
       ExprKind::Literal(lit) => lit.clone(),
       ExprKind::Cast { base, ..} => self.evaluate(&base),
       ExprKind::Variable(var) => {
-        if let Some(ex) = self.vars.get(&var).unwrap() {
-          self.evaluate(ex)
+        let context = self.vars.get(&var).unwrap();
+        if let Some(expr) = &context.expr {
+          self.evaluate(expr)
         } else {
           self.base.error(&format!("Variable of id {} has no value", var));
         }
@@ -164,10 +186,10 @@ impl Generator {
                 Literal::String(s) => self.alloc_str_const(&var.name, &s),
               };
             }
-            self.vars.insert(var.id, Some(expr.clone()));
+            self.vars.insert(var.id, VarContext { expr: Some(expr.clone()), r#type: var.r#type.clone(), location: MemoryLocation::Data(var.name.clone())});
           } else {
             self.uninit_alloc(&var.name, var.r#type.get_size());
-            self.vars.insert(var.id, None);
+            self.vars.insert(var.id, VarContext { expr: None, r#type: var.r#type.clone(), location: MemoryLocation::Data(var.name.clone()) });
           }
         } else {
           let val = if let Some(expr) = expr {
@@ -175,7 +197,8 @@ impl Generator {
           } else {
             String::from("0")
           };
-          self.alloc_var(var.id, -(var.r#type.get_size() as isize), var.r#type.get_align(), &val);
+          let loc = self.alloc_var(var.id, -(var.r#type.get_size() as isize), var.r#type.get_align(), &val);
+          self.vars.insert(var.id, VarContext { expr: expr.clone(), location: loc,  r#type: var.r#type.clone() });
           self.free_cache();
         }
       },
@@ -216,6 +239,7 @@ impl Generator {
           self.pop(&configs.registers.base_pointer[0]);
           self.ret();
         }
+        self.free_cache();
       }
 
       _ => unimplemented!()
