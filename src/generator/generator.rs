@@ -128,7 +128,13 @@ impl Generator {
 
         self.free_cache.push(regid);
         MemoryLocation::Register(reg)
-      }
+      },
+      ExprKind::SizeOf(t) => {
+        let num = t.get_size().to_string();
+        let ret = self.get_ret_reg(get_configs().biggest_size);
+        self.mov(&ret, &num);
+        MemoryLocation::Register(ret)
+      },
       _ => unimplemented!()
     }
   }
