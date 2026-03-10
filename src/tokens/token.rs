@@ -9,7 +9,7 @@ pub enum TokenKind {
   AngleBlock(Vec<Token>),
   SquareBlock(Vec<Token>),
   Semicolon, Dot, Comma, Ampersand, Dollar, Hash, Ellipsis, TwoDots,
-  Return, Asm, Typedef, If, Else, While, Do, For, Namespace, Fnc, Inline, Struct, Union, Enum, To, SizeOf, Operator, Mut, Break, Continue, Signed, Extern,
+  Return, Asm, Typedef, If, Else, While, Do, For, Namespace, Fnc, Inline, Struct, Union, Enum, To, SizeOf, Operator, Mut, Break, Continue, Signed, Extern, Void,
   Include, Define, Macro, GetConfig, Ifdef, Ifndef,
   Identifier(String),
   Literal(String),
@@ -132,6 +132,7 @@ impl Display for Token {
       TokenKind::GetConfig => write!(f, "getconfig"),
       TokenKind::Ifdef => write!(f, "ifdef"),
       TokenKind::Ifndef => write!(f, "ifndef"),
+      TokenKind::Void => write!(f, "void"),
       TokenKind::Invalid => write!(f, "NULL")
     }?;
     write!(f, "<{}>", self.line)

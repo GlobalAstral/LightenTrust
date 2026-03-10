@@ -212,6 +212,7 @@ impl Tokenizer {
               "ifdef" => Some(TokenKind::Ifdef),
               "ifndef" => Some(TokenKind::Ifndef),
               "extern" => Some(TokenKind::Extern),
+              "void" => Some(TokenKind::Void),
               s => Some(TokenKind::Identifier(s.to_string()))
             }
           } else if c.is_digit(10) {

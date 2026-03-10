@@ -48,6 +48,9 @@ impl Parser {
 
   fn parse_var(&mut self, mutable: bool) -> Variable {
     if let Some(r#type) = self.parse_type() {
+      if matches!(r#type, Type::Void) {
+        self.base.error("Cannot declare Variable of type void");
+      }
       if matches!(self.base.peek().kind, TokenKind::Identifier(_)) {
         let name = self.parse_identifier();
         return Variable { r#type, name, id: generate_id(), mutable: mutable, global: self.is_global()}
@@ -86,7 +89,9 @@ impl Parser {
   }
 
   fn parse_type(&mut self) -> Option<Type> {
-    if self.base.tryconsume(Token { kind: TokenKind::Ampersand, ..Default::default() }) {
+    if self.base.tryconsume(Token { kind: TokenKind::Void, ..Default::default() }) {
+      Some(Type::Void)
+    } else if self.base.tryconsume(Token { kind: TokenKind::Ampersand, ..Default::default() }) {
       Some(Type::Pointer { r#type: Box::new(self.parse_type().unwrap_or_else(|| self.base.error("Expected Type"))) })
 
     } else if matches!(self.base.peek().kind, TokenKind::SquareBlock(_)) {
@@ -223,7 +228,11 @@ impl Parser {
       let temp = op.return_type.clone();
       Expression { kind: ExprKind::Unary { expr: Box::new(expr), operator:  op.clone()}, return_type: temp }
     } else if self.base.tryconsume(Token { kind: TokenKind::SizeOf, ..Default::default() }) {
-      Expression { kind: ExprKind::SizeOf(Box::new(self.parse_expr())), return_type: Type::Memory { size: get_configs().sizes.pointer, kind: MemoryKind::Unsigned } }
+      if let Some(t) = self.parse_type() {
+        Expression { kind: ExprKind::SizeOf(t), return_type: Type::Memory { size: get_configs().sizes.pointer, kind: MemoryKind::Unsigned } }
+      } else {
+        Expression { kind: ExprKind::SizeOf(self.parse_expr().return_type), return_type: Type::Memory { size: get_configs().sizes.pointer, kind: MemoryKind::Unsigned } }
+      }
     } else if self.base.tryconsume(Token { kind: TokenKind::Ampersand, ..Default::default() }) {
       let expr = self.parse_expr();
       Expression { return_type: Type::Pointer { r#type: Box::new(expr.return_type.clone()) }, kind: ExprKind::Reference(Box::new(expr)) }
@@ -548,7 +557,9 @@ impl Parser {
       let body = if self.base.tryconsume(Token { kind: TokenKind::Semicolon, ..Default::default() }) {
         None
       } else {
-        self.return_type = Some(return_type.clone());
+        self.return_type = if matches!(return_type, Type::Void) { None } else {
+          Some(return_type.clone())
+        };
         let body = self.parse_one();
         if !matches!(body, Node::Scope(_)) {
           self.base.error("Scope for function body is mandatory")
@@ -590,6 +601,9 @@ impl Parser {
         base.require(Token { kind: TokenKind::Comma, ..Default::default() });
         let return_type = unsafe {(*this).parse_type()}
           .unwrap_or_else(|| base.error("Expected Type"));
+        if matches!(return_type, Type::Void) {
+          base.error("Return Type for operator cannot be void")
+        }
         base.require(Token { kind: TokenKind::Comma, ..Default::default() });
         let prec = base.consume().as_literal().and_then(|l| l.as_integer())
           .unwrap_or_else(|| base.error("Expected Integer Literal"));
@@ -637,6 +651,9 @@ impl Parser {
       self.types.insert(name, Some(t));
       Node::Ignored
     } else if let Some(r#type) = self.parse_type() {
+      if matches!(r#type, Type::Void) {
+        self.base.error("Cannot declare a variable of void type");
+      }
       let mutable = self.base.tryconsume(Token { kind: TokenKind::Mut, ..Default::default() });
       let name = self.parse_identifier();
       if self.locals.iter().find(|v| v.name == name).is_some() || self.globals.iter().find(|v| v.name == name).is_some() {

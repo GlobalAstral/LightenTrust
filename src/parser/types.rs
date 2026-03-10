@@ -60,7 +60,8 @@ pub enum Type {
   FunctionPointer {
     return_type: Box<Type>,
     arguments: Vec<Type>
-  }
+  },
+  Void,
 }
 
 impl Display for Type {
@@ -72,7 +73,8 @@ impl Display for Type {
       Self::Pointer { r#type } => write!(f, "&{}", r#type),
       Self::Struct { fields } => write!(f, "struct {{ {} }}", fields.iter().map(|v| format!("{}", v)).collect::<Vec<String>>().join("; ")),
       Self::Union { fields } => write!(f, "union {{ {} }}", fields.iter().map(|v| format!("{}", v)).collect::<Vec<String>>().join("; ")),
-      Self::FunctionPointer { return_type, arguments } => write!(f, "fnc({}) {}", arguments.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", "), return_type)
+      Self::FunctionPointer { return_type, arguments } => write!(f, "fnc({}) {}", arguments.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", "), return_type),
+      Self::Void => write!(f, "void")
     }
   }
 }
@@ -93,6 +95,7 @@ impl Type {
       Self::Pointer { .. } => get_configs().sizes.pointer as usize,
       Self::Struct { fields } => fields.iter().fold(0, |a, b| a + b.r#type.get_size()),
       Self::Union { fields } => fields.iter().map(|f| f.r#type.get_size()).max().unwrap(),
+      Self::Void => 0,
       _ => {
         unreachable!()
       }
@@ -117,6 +120,10 @@ impl Type {
       let Type::Array { r#type: t, .. } = self else { unreachable!() };
       let Type::Pointer { r#type: t2} = other else { unreachable!() };
       return t.compatible_with(&t2)
+    }
+
+    if matches!(self, Self::Void) || matches!(other, Self::Void) {
+      return false;
     }
 
     if matches!(self, Self::Struct { .. }) && matches!(other, Self::Struct { .. }) {

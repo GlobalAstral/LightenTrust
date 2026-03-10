@@ -119,7 +119,7 @@ impl Generator {
           self.base.error(&format!("Variable of id {} has no value", var));
         }
       },
-      ExprKind::SizeOf(t) => Literal::Integer(t.return_type.get_size() as u64),
+      ExprKind::SizeOf(t) => Literal::Integer(t.get_size() as u64),
       _ => self.base.error(&format!("Expression {} is not evaluable at compiletime", expr))
     }
   }

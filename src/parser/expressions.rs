@@ -39,7 +39,7 @@ pub enum ExprKind {
     into: Type
   },
   FncPtrRef(u64),
-  SizeOf(Box<Expression>),
+  SizeOf(Type),
   Unary {
     expr: Box<Expression>,
     operator: Operator
