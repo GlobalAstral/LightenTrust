@@ -112,6 +112,42 @@ impl Generator {
     }
   }
 
+  fn compile_lvalue(&mut self, expr: &Expression) -> MemoryLocation {
+    match &expr.kind {
+      ExprKind::Variable(id) => {
+        self.vars.get(id).unwrap().location.clone()
+      },
+      ExprKind::Dereference(expr) => {
+        let loc = self.compile_expr(expr);
+        let (reg, reg_id) = self.get_unused_register(expr.return_type.get_size(), expr.return_type.is_float());
+        if expr.return_type.is_float() {
+          self.movss(&reg, &loc.get());
+        } else {
+          self.mov(&reg, &loc.get());
+        }
+        self.free_cache.push(reg_id);
+        MemoryLocation::Data(reg)
+      },
+      ExprKind::Index { base, index } => {
+        let base_loc = self.compile_expr(base);
+        let index_loc = self.compile_expr(index);
+        let (base_reg, id1) = self.get_unused_register(base.return_type.get_size(), base.return_type.is_float());
+        let (index_reg, id2) = self.get_unused_register(index.return_type.get_size(), index.return_type.is_float());
+        self.mov(&base_reg, &base_loc.get());
+        self.mov(&index_reg, &index_loc.get());
+        self.free_cache.push(id1);
+        self.free_cache.push(id2);
+        MemoryLocation::Data(format!("{}+{}*{}", base_reg, index_reg, expr.return_type.get_size()))
+      },
+      ExprKind::FieldAccess { field, .. } => {
+        self.vars.get(&field.id).unwrap().location.clone()
+      },
+      _ => {
+        self.base.error(&format!("Invalid lvalue {}", expr))
+      }
+    }
+  }
+
   fn compile_expr(&mut self, expr: &Expression) -> MemoryLocation {
     match &expr.kind {
       ExprKind::Literal(lit) => self.compile_literal(lit),
@@ -153,6 +189,20 @@ impl Generator {
           self.mov(&ret, &temp.get());
         };
         MemoryLocation::Register(ret)
+      },
+      ExprKind::Assignment { left, right } => {
+        let (r_reg, r_id) = self.get_unused_register(right.return_type.get_size(), right.return_type.is_float());
+        let right_loc = self.compile_expr(right);
+        let left_loc = self.compile_lvalue(left);        
+        if right.return_type.is_float() {
+          self.movss(&r_reg, &right_loc.get());
+          self.movss(&left_loc.get(), &r_reg);
+        } else {
+          self.mov(&r_reg, &right_loc.get());
+          self.mov(&left_loc.get(), &r_reg);
+        }
+        self.free_cache.push(r_id);
+        left_loc
       }
       _ => unimplemented!()
     }
@@ -265,6 +315,9 @@ impl Generator {
           self.ret();
         }
         self.free_cache();
+      },
+      Node::Expr(expr) => {
+        self.compile_expr(expr);
       }
 
       _ => unimplemented!()
