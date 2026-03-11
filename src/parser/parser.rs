@@ -117,7 +117,7 @@ impl Parser {
         let this: *mut Parser = self;
         
         let (size, r#type) = self.base.switch(block, |base| {
-          let size = unsafe { (*this).parse_expr() };
+          let size = unsafe { (*this).parse_expr(true) };
           
           base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
           
@@ -209,17 +209,18 @@ impl Parser {
     }
   }
 
-  fn parse_expr(&mut self) -> Expression {
+  fn parse_expr(&mut self, extend: bool) -> Expression {
     let expr = if self.base.tryconsume(Token { kind: TokenKind::Symbols("*".into()), ..Default::default() }) {
-      let expr = self.parse_expr();
+      let expr = self.parse_expr(false);
       if let Type::Pointer { r#type } = &expr.return_type {
         let temp = *r#type.clone();
-        return Expression { return_type: temp, kind: ExprKind::Dereference(Box::new(expr)) }
+        Expression { return_type: temp, kind: ExprKind::Dereference(Box::new(expr)) }
+      } else {
+        self.base.error("Cannot dereference a non pointer type");
       }
-      self.base.error("Cannot dereference a non pointer type");
     } else if matches!(self.base.peek().kind, TokenKind::Symbols(_)) {
       let symbols = self.base.consume().as_symbols().unwrap().to_string();
-      let expr = self.parse_expr();
+      let expr = self.parse_expr(false);
       let op = self.operators.iter().find(|op| {
         op.symbols == symbols &&
         op.right == None &&
@@ -231,10 +232,10 @@ impl Parser {
       if let Some(t) = self.parse_type() {
         Expression { kind: ExprKind::SizeOf(t), return_type: Type::Memory { size: get_configs().sizes.pointer, kind: MemoryKind::Unsigned } }
       } else {
-        Expression { kind: ExprKind::SizeOf(self.parse_expr().return_type), return_type: Type::Memory { size: get_configs().sizes.pointer, kind: MemoryKind::Unsigned } }
+        Expression { kind: ExprKind::SizeOf(self.parse_expr(true).return_type), return_type: Type::Memory { size: get_configs().sizes.pointer, kind: MemoryKind::Unsigned } }
       }
     } else if self.base.tryconsume(Token { kind: TokenKind::Ampersand, ..Default::default() }) {
-      let expr = self.parse_expr();
+      let expr = self.parse_expr(false);
       if matches!(expr.kind, ExprKind::Literal(_) | ExprKind::Assignment { .. } | ExprKind::Binary { .. } | ExprKind::FncCall { .. } | ExprKind::FncPtrCall { .. } | ExprKind::SizeOf(_) | ExprKind::Unary { .. }) {
         self.base.error(&format!("Cannot reference {}", expr));
       }
@@ -243,7 +244,7 @@ impl Parser {
     } else if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {
       let block = self.base.consume().as_paren_block().unwrap();
       let this: *mut Parser = self;
-      self.base.switch(block, |_| unsafe { (*this).parse_expr() })
+      self.base.switch(block, |_| unsafe { (*this).parse_expr(true) })
     
     } else if matches!(self.base.peek().kind, TokenKind::Literal(_)) {
       let lit = self.base.consume().as_literal().unwrap();
@@ -263,7 +264,7 @@ impl Parser {
             if count > 0 {
               base.require(Token { kind: TokenKind::Comma, ..Default::default() });
             }
-            args.push( unsafe { (*this).parse_expr() } );
+            args.push( unsafe { (*this).parse_expr(true) } );
             count += 1;
           }
           args
@@ -383,6 +384,10 @@ impl Parser {
       self.base.error("Expected Expression");
     };
 
+    if !extend {
+      return expr;
+    }
+
     if matches!(self.base.peek().kind, TokenKind::SquareBlock(_)) {
       if !matches!(expr.return_type, Type::Pointer { .. } | Type::Array { .. }) {
         self.base.error("Cannot index a non array or pointer type")
@@ -392,7 +397,7 @@ impl Parser {
       let this: *mut Parser = self;
       
       let i = self.base.switch(block, |_| {
-        unsafe { (*this).parse_expr() }
+        unsafe { (*this).parse_expr(true) }
       });
       
       let t = if let Type::Array { r#type , ..} = &expr.return_type {
@@ -421,7 +426,7 @@ impl Parser {
             base.require(Token { kind: TokenKind::Comma, ..Default::default() });
           }
       
-          temp.push(unsafe {(*this).parse_expr()});
+          temp.push(unsafe {(*this).parse_expr(true)});
           count += 1;
         }
         temp
@@ -469,7 +474,7 @@ impl Parser {
         self.base.error(&format!("{} is not a valid place for assignment", expr))
       };
 
-      let value = self.parse_expr();
+      let value = self.parse_expr(true);
       if !value.return_type.compatible_with(&expr.return_type) {
         self.base.error(&format!("Value of type {} cannot be assigned to value of type {}", value.return_type, expr.return_type))
       };
@@ -477,7 +482,7 @@ impl Parser {
     } else if matches!(self.base.peek().kind, TokenKind::Symbols(_)) {
       let left = expr;
       let symbols = self.base.consume().as_symbols().unwrap().to_string();
-      let right = self.parse_expr();
+      let right = self.parse_expr(true);
       let op = self.operators.iter().find(|op| {
         op.symbols == symbols &&
         op.right.as_ref().unwrap().r#type.compatible_with(&right.return_type) &&
@@ -672,7 +677,7 @@ impl Parser {
         Node::VariableDecl { var, expr: None }
       } else if matches!(self.base.peek().kind, TokenKind::Symbols(s) if s == "=") {
         self.base.consume();
-        let expr = self.parse_expr();
+        let expr = self.parse_expr(true);
         if !expr.return_type.compatible_with(&var.r#type) {
           self.base.error(&format!("Type {} cannot be assigned to type {}", &expr.return_type, &var.r#type));
         };
@@ -702,7 +707,7 @@ impl Parser {
       if self.return_type.is_none() {
         self.base.error("Cannot return outside of function");
       };
-      let expr = self.parse_expr();
+      let expr = self.parse_expr(true);
       if !expr.return_type.compatible_with(self.return_type.as_ref().unwrap()) {
         self.base.error(&format!("Type {} cannot be returned as a {} type", expr.return_type, self.return_type.as_ref().unwrap()));
       };
@@ -721,14 +726,14 @@ impl Parser {
         .unwrap_or_else(|e| self.base.error(&format!("{}", e))); 
       Node::Assembly(asm)
     } else if self.base.tryconsume(Token { kind: TokenKind::If, ..Default::default() }) {
-      let expr = self.parse_expr();
+      let expr = self.parse_expr(true);
       let body = self.parse_one();
       let else_body = if self.base.tryconsume(Token { kind: TokenKind::Else, ..Default::default() }) {
         Some(Box::new(self.parse_one()))
       } else {None};
       Node::If(expr, Box::new(body), else_body)
     } else if self.base.tryconsume(Token { kind: TokenKind::While, ..Default::default() }) {
-      let expr = self.parse_expr();
+      let expr = self.parse_expr(true);
       self.loop_depth += 1;
       let body = self.parse_one();
       self.loop_depth -= 1;
@@ -738,7 +743,7 @@ impl Parser {
       let body = self.parse_one();
       self.loop_depth -= 1;
       self.base.require(Token { kind: TokenKind::While, ..Default::default() });
-      let expr = self.parse_expr();
+      let expr = self.parse_expr(true);
       self.base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
       Node::DoWhile(expr, Box::new(body))
     } else if self.base.tryconsume(Token { kind: TokenKind::For, ..Default::default() }) {
@@ -751,10 +756,10 @@ impl Parser {
       let (var, init, cond, incr) = self.base.switch(block, |base| {
         let var = unsafe { (*this).parse_var(true) };
         base.require(Token { kind: TokenKind::Symbols(String::from("=")), ..Default::default() });
-        let expr = unsafe { (*this).parse_expr() };
+        let expr = unsafe { (*this).parse_expr(true) };
         self.locals.push(var.clone());
         base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
-        let cond = unsafe { (*this).parse_expr() };
+        let cond = unsafe { (*this).parse_expr(true) };
         base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
         let incr = unsafe { (*this).parse_one() };
         (var, expr, cond, incr)
@@ -838,7 +843,7 @@ impl Parser {
       self.functions.push(f.clone());
       Node::ExternFnc(f)
     } else {
-      let temp = self.parse_expr();
+      let temp = self.parse_expr(true);
       self.base.require(Token { kind: TokenKind::Semicolon, ..Default::default() });
       Node::Expr(temp)
     }
