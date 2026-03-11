@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::{constants::get_configs, parser::{expressions::{ExprKind, Expression}, literals::Literal, nodes::{Fnc, Node}, types::{Type, Variable}, utils::Processor}};
+use crate::{constants::get_configs, parser::{assembly::AssemblyChunk, expressions::{ExprKind, Expression}, literals::Literal, nodes::{Fnc, Node}, types::{Type, Variable}, utils::Processor}};
 
 static mut LABEL_ID: u64 = 0;
 
@@ -203,7 +203,8 @@ impl Generator {
         }
         self.free_cache.push(r_id);
         left_loc
-      }
+      },
+      //TODO
       _ => unimplemented!()
     }
   }
@@ -318,6 +319,15 @@ impl Generator {
       },
       Node::Expr(expr) => {
         self.compile_expr(expr);
+      },
+      Node::Assembly(code) => {
+        let mut buffer = String::new();
+        code.iter().for_each(|chunk| match chunk {
+          AssemblyChunk::Original(s) => buffer.push_str(&s),
+          AssemblyChunk::Var(id) => buffer.push_str(&self.vars.get(id).unwrap().location.get()),
+        });
+        buffer.lines().map(|ln| format!("{}{}", "\t".repeat(self.indent_depth), ln))
+          .for_each(|l| { self.sections.text.push_str(&format!("{}\n", l)); });
       }
 
       _ => unimplemented!()
