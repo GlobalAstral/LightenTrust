@@ -329,7 +329,7 @@ impl Generator {
         buffer.lines().map(|ln| format!("{}{}", "\t".repeat(self.indent_depth), ln))
           .for_each(|l| { self.sections.text.push_str(&format!("{}\n", l)); });
       }
-
+      //TODO THINK ABOUT CALLING CONVENTIONS AND IMPLEMENT IT IN FUNCTION PROLOGUE
       _ => unimplemented!()
     }
   }
