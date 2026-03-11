@@ -116,18 +116,7 @@ impl Generator {
     match &expr.kind {
       ExprKind::Literal(lit) => self.compile_literal(lit),
       ExprKind::Variable(id) => {
-        let context = self.vars.get(id).unwrap().clone();
-        let isfloat = context.r#type.is_float();
-        let (reg, regid) = self.get_unused_register(context.r#type.get_size(), isfloat);
-
-        if isfloat {
-          self.movss(&reg, &context.location.get());
-        } else {
-          self.mov(&reg, &context.location.get());
-        }
-
-        self.free_cache.push(regid);
-        MemoryLocation::Register(reg)
+        self.vars.get(id).unwrap().clone().location
       },
       ExprKind::SizeOf(t) => {
         let num = t.get_size().to_string();
@@ -135,6 +124,12 @@ impl Generator {
         self.mov(&ret, &num);
         MemoryLocation::Register(ret)
       },
+      ExprKind::Reference(ex) => {
+        let reg = self.get_ret_reg(expr.return_type.get_size());
+        let location = self.compile_expr(ex);
+        self.lea(&reg, &location.get());
+        MemoryLocation::Register(reg)
+      }
       _ => unimplemented!()
     }
   }
@@ -203,7 +198,7 @@ impl Generator {
           } else {
             String::from("0")
           };
-          let loc = self.alloc_var(var.id, -(var.r#type.get_size() as isize), var.r#type.get_align(), &val);
+          let loc = self.alloc_var(var.id, var.r#type.get_size() as isize, var.r#type.get_align(), &val);
           self.vars.insert(var.id, VarContext { expr: expr.clone(), location: loc,  r#type: var.r#type.clone() });
           self.free_cache();
         }

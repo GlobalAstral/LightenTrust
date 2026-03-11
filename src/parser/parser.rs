@@ -235,6 +235,9 @@ impl Parser {
       }
     } else if self.base.tryconsume(Token { kind: TokenKind::Ampersand, ..Default::default() }) {
       let expr = self.parse_expr();
+      if matches!(expr.kind, ExprKind::Literal(_) | ExprKind::Assignment { .. } | ExprKind::Binary { .. } | ExprKind::FncCall { .. } | ExprKind::FncPtrCall { .. } | ExprKind::SizeOf(_) | ExprKind::Unary { .. }) {
+        self.base.error(&format!("Cannot reference {}", expr));
+      }
       Expression { return_type: Type::Pointer { r#type: Box::new(expr.return_type.clone()) }, kind: ExprKind::Reference(Box::new(expr)) }
     
     } else if matches!(self.base.peek().kind, TokenKind::ParenthesisBlock(_)) {

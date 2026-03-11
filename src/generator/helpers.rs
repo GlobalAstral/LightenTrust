@@ -206,7 +206,7 @@ impl Generator {
     
     frame.locals.insert(id, frame.next_ofs);
     
-    let location = MemoryLocation::Stack(frame.next_ofs as isize);
+    let location = MemoryLocation::Stack(-frame.next_ofs as isize);
     
     self.mov(&location.get(), value);
     return location;
