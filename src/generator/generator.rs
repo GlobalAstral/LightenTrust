@@ -129,6 +129,30 @@ impl Generator {
         let location = self.compile_expr(ex);
         self.lea(&reg, &location.get());
         MemoryLocation::Register(reg)
+      },
+      ExprKind::Dereference(ex) => {
+        let isfloat = ex.return_type.is_float();
+        let (reg, regid) = self.get_unused_register(ex.return_type.get_size(), isfloat);
+        
+        let loc = self.compile_expr(ex);
+        if isfloat {
+          self.movss(&reg, &loc.get());
+        } else {
+          self.mov(&reg, &loc.get());
+        }
+        self.free_cache.push(regid);
+        let temp = MemoryLocation::Data(reg);
+        let ret = if isfloat {
+          self.get_ret_simd(ex.return_type.get_size())
+        } else {
+          self.get_ret_reg(ex.return_type.get_size())
+        };
+        if isfloat {
+          self.movss(&ret, &temp.get());
+        } else {
+          self.mov(&ret, &temp.get());
+        };
+        MemoryLocation::Register(ret)
       }
       _ => unimplemented!()
     }
