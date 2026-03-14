@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::{constants::get_configs, parser::{assembly::AssemblyChunk, expressions::{ExprKind, Expression}, literals::Literal, nodes::{Fnc, Node}, types::{Type, Variable}, utils::Processor}};
+use crate::{constants::get_configs, parser::{assembly::AssemblyChunk, expressions::{ExprKind, Expression}, literals::Literal, nodes::{Fnc, Node}, types::{Type, Variable}, utils::Processor}, scanner::scanner::StackFrame};
 
 static mut LABEL_ID: u64 = 0;
 
@@ -18,17 +18,6 @@ pub enum MemoryLocation {
   Register(String),
   Data(String),
   Value(String)
-}
-
-pub struct StackFrame {
-  pub next_ofs: isize,
-  pub locals: HashMap<u64, isize>
-}
-
-impl StackFrame {
-  pub fn new() -> Self {
-    Self { next_ofs: 0, locals: HashMap::new() }
-  }
 }
 
 impl MemoryLocation {
@@ -64,10 +53,11 @@ pub struct Generator {
   pub stack_frames: Vec<StackFrame>,
   pub selected_stack_frame: isize,
   pub free_cache: Vec<usize>,
+  pub max_param_size: usize,
 }
 
 impl Generator {
-  pub fn new(i: Vec<Node>, globals: Vec<Variable>) -> Self {
+  pub fn new(i: Vec<Node>, globals: Vec<Variable>, stack_frames: Vec<StackFrame>, max_param_size: usize) -> Self {
     Self {
       base: Processor::new(i, Box::new(|_, _| false) , Box::new(|_| 0), Box::new(|_| PathBuf::new())), 
       sections: Sections::default(),
@@ -76,9 +66,10 @@ impl Generator {
       functions: Vec::new(),
       globals: globals,
       vars: HashMap::new(),
-      stack_frames: Vec::new(),
+      stack_frames: stack_frames,
       selected_stack_frame: -1,
-      free_cache: Vec::new()
+      free_cache: Vec::new(),
+      max_param_size: max_param_size
     }
   }
 
@@ -106,7 +97,7 @@ impl Generator {
         let fsize = get_configs().sizes.floatl_size as usize;
         self.const_alloc(&lbl, fsize, &f.to_string());
         let simd = self.get_ret_simd(fsize);
-        self.movss(&simd, &format!("[{}]", lbl));
+        self.r#move(&simd, &format!("[{}]", lbl), &lit.get_type());
         MemoryLocation::Register(simd)
       }
     }
@@ -120,11 +111,7 @@ impl Generator {
       ExprKind::Dereference(expr) => {
         let loc = self.compile_expr(expr);
         let (reg, reg_id) = self.get_unused_register(expr.return_type.get_size(), expr.return_type.is_float());
-        if expr.return_type.is_float() {
-          self.movss(&reg, &loc.get());
-        } else {
-          self.mov(&reg, &loc.get());
-        }
+        self.r#move(&reg, &loc.get(), &expr.return_type);
         self.free_cache.push(reg_id);
         MemoryLocation::Data(reg)
       },
@@ -171,40 +158,29 @@ impl Generator {
         let (reg, regid) = self.get_unused_register(ex.return_type.get_size(), isfloat);
         
         let loc = self.compile_expr(ex);
-        if isfloat {
-          self.movss(&reg, &loc.get());
-        } else {
-          self.mov(&reg, &loc.get());
-        }
+        self.r#move(&reg, &loc.get(), &ex.return_type);
         self.free_cache.push(regid);
         let temp = MemoryLocation::Data(reg);
-        let ret = if isfloat {
-          self.get_ret_simd(ex.return_type.get_size())
-        } else {
-          self.get_ret_reg(ex.return_type.get_size())
-        };
-        if isfloat {
-          self.movss(&ret, &temp.get());
-        } else {
-          self.mov(&ret, &temp.get());
-        };
+        let ret = self.get_return(ex.return_type.get_size(), isfloat);
+        self.r#move(&ret, &temp.get(), &ex.return_type);
         MemoryLocation::Register(ret)
       },
       ExprKind::Assignment { left, right } => {
         let (r_reg, r_id) = self.get_unused_register(right.return_type.get_size(), right.return_type.is_float());
         let right_loc = self.compile_expr(right);
-        let left_loc = self.compile_lvalue(left);        
-        if right.return_type.is_float() {
-          self.movss(&r_reg, &right_loc.get());
-          self.movss(&left_loc.get(), &r_reg);
-        } else {
-          self.mov(&r_reg, &right_loc.get());
-          self.mov(&left_loc.get(), &r_reg);
-        }
+        let left_loc = self.compile_lvalue(left);
+        self.r#move(&r_reg, &right_loc.get(), &right.return_type);
+        self.r#move(&left_loc.get(), &r_reg, &right.return_type);
         self.free_cache.push(r_id);
         left_loc
       },
-      //TODO
+      ExprKind::FncCall { id, args } => {
+        let configs = get_configs();
+
+        
+
+        unreachable!()
+      }
       _ => unimplemented!()
     }
   }
@@ -238,7 +214,7 @@ impl Generator {
         if let Some(body) = &fnc.body {
           self.create_function(&fnc.name, |this, total_alloc| {
             this.compile_one(&body, total_alloc);
-          });
+          }, &get_configs().default_abi, fnc);
         }
       },
       Node::VariableDecl { var, expr } => {
@@ -273,26 +249,18 @@ impl Generator {
           } else {
             String::from("0")
           };
-          let loc = self.alloc_var(var.id, var.r#type.get_size() as isize, var.r#type.get_align(), &val);
+          let loc = self.alloc_var(var.id, &val);
           self.vars.insert(var.id, VarContext { expr: expr.clone(), location: loc,  r#type: var.r#type.clone() });
           self.free_cache();
         }
       },
       Node::Return(ex) => {
         let isfloat = ex.return_type.is_float();
-        let ret = if isfloat {
-          self.get_ret_simd(ex.return_type.get_size())
-        } else {
-          self.get_ret_reg(ex.return_type.get_size())
-        };
+        let ret = self.get_return(ex.return_type.get_size(), ex.return_type.is_float());
         if ex.is_evaluable(&self.globals) {
           let lit = self.evaluate(ex);
           let location = self.compile_literal(&lit);
-          if isfloat {
-            self.movss(&ret, &location.get());
-          } else {
-            self.mov(&ret, &location.get());
-          }
+          self.r#move(&ret, &location.get(), &ex.return_type);
           let configs = get_configs();
           self.add(&configs.registers.stack_pointer[0], &format!("{}", total_allocated.abs()));
           self.mov(&configs.registers.stack_pointer[0], &configs.registers.base_pointer[0]);
@@ -301,13 +269,8 @@ impl Generator {
         } else {
           let (temp, tempid) = self.get_unused_register(ex.return_type.get_size(), isfloat);
           let location = self.compile_expr(ex);
-          if isfloat {
-            self.movss(&temp, &location.get());
-            self.movss(&ret, &temp);
-          } else {
-            self.mov(&temp, &location.get());
-            self.mov(&ret, &temp);
-          }
+          self.r#move(&temp, &location.get(), &ex.return_type);
+          self.r#move(&ret, &ret, &ex.return_type);
           self.free_register(tempid);
           let configs = get_configs();
           self.add(&configs.registers.stack_pointer[0], &format!("{}", total_allocated.abs()));

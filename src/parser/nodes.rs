@@ -6,7 +6,7 @@ use crate::parser::{assembly::AssemblyChunk, expressions::{Expression, Operator}
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct Linkage {
-  pub abi: ABI,
+  pub abi: String,
 }
 
 impl Display for Linkage  {

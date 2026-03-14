@@ -1,4 +1,5 @@
 entry = "main"
+DEFAULT_ABI = "WIN"
 
 [sections]
   text = ".text"
@@ -37,6 +38,7 @@ entry = "main"
   ]
 
   simds = [
+    ["xmm0"],
     ["xmm1"],
     ["xmm2"],
     ["xmm3"],
@@ -56,4 +58,27 @@ entry = "main"
 
   stack_pointer = ["rsp", "esp", "sp", "spl"]
   base_pointer = ["rbp", "ebp", "bp", "bpl"]
-  
+
+  floating_instructions_suffixes = [
+    [4, "ss"],
+    [8, "sd"]
+  ]
+
+[[abis]]
+  name = "WIN"
+  stack_align = 16
+  param_simds = [
+    [0, 0],
+    [1, 1],
+    [2, 2],
+    [3, 3],
+  ]
+  param_registers = [
+    [0, 1],
+    [1, 2],
+    [2, 5],
+    [3, 6],
+  ]
+  shadow_space = 32
+  shadow_size = 8
+

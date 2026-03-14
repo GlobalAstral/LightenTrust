@@ -1,12 +1,13 @@
 use std::{env, error::Error, fs::{self, OpenOptions}, io::Write, path::PathBuf};
 
-use toml_edit::Document;
+use toml_edit::{Array, Document, Item, Value};
 
-use crate::{constants::{CONFIGS, Configs, DEFAULT_CONFIG, EXTENSION, RegisterVariants, Registers, SectionNames, Sizes}, generator::generator::Generator, parser::parser::Parser, tokens::{preprocessor::Preprocessor, tokenizer::Tokenizer}};
+use crate::{constants::{CONFIGS, CallingConvention, Configs, DEFAULT_CONFIG, EXTENSION, RegisterVariants, Registers, SectionNames, Sizes}, generator::generator::Generator, parser::parser::Parser, scanner::scanner::Scanner, tokens::{preprocessor::Preprocessor, tokenizer::Tokenizer}};
 
 mod constants;
 mod tokens;
 mod parser;
+mod scanner;
 mod generator;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -121,9 +122,53 @@ fn main() -> Result<(), Box<dyn Error>> {
         let regs = doc.get("registers").and_then(|t| t.as_table()).expect("Cannot get table 'registers'");
         regs.get("biggest_simd").and_then(|t| t.as_integer()).unwrap_or(8) as usize
       },
-      instruction_suffix: {
+      floating_instructions_suffixes: {
         let regs = doc.get("registers").and_then(|t| t.as_table()).expect("Cannot get table 'registers'");
-        regs.get("instruction_suffix").and_then(|t| t.as_str()).unwrap_or("ss").to_string()
+        let floating_suffixes = regs.get("floating_instructions_suffixes").and_then(|arr| arr.as_array()).expect("Cannot get array 'floating_instructions_suffixes'");
+        floating_suffixes.iter().map(|element| {
+          let arr = element.as_array().expect("Cannot get suffix definition");
+          let size = arr.get(0).and_then(|s| s.as_integer()).expect("Expected size in suffix definition") as usize;
+          let suffix = arr.get(1).and_then(|s| s.as_str()).expect("Expected suffix in suffix definition").to_string();
+          (size, suffix)
+        }).collect::<Vec<(usize, String)>>()
+      },
+      abis: {
+        let abis = doc.get("abis").and_then(|t| t.as_array_of_tables()).expect("Cannot get array 'abis'");
+        let conventions: Vec<CallingConvention> = abis.iter().map(|content| {
+          let name = content.get("name").and_then(|t| t.as_str()).expect("Name of ABI must be string").to_string();
+          let stack_align: usize = content.get("stack_align").and_then(|sa| sa.as_integer()).expect("stack_align of ABI must be integer") as usize;
+          let shadow_space: usize = content.get("shadow_space").and_then(|ss| ss.as_integer()).expect("'shadow_space of ABI must be integer'") as usize;
+
+          let parameter_registers = content.get("param_registers").and_then(|pr| pr.as_array()).map(|element| {
+            let temp = element.iter().map(|ele| ele.as_array().expect("Parameter registers must be array").iter().map(|ele| {
+              ele.as_integer().expect("Parameter registers must be integers") as usize
+            }).collect()).collect::<Vec<Vec<usize>>>();
+            temp
+          }).expect("Parameter Registers must be an array of arrays of integers").iter().map(|temp| {
+            (temp[0], temp[1])
+          }).collect();
+
+          let parameter_simds = content.get("param_simds").and_then(|pr| pr.as_array()).map(|element| {
+            let temp = element.iter().map(|ele| ele.as_array().expect("Parameter simds must be array").iter().map(|ele| {
+              ele.as_integer().expect("Parameter simds must be integers") as usize
+            }).collect()).collect::<Vec<Vec<usize>>>();
+            temp
+          }).expect("Parameter Registers must be an array of arrays of integers").iter().map(|temp| {
+            (temp[0], temp[1])
+          }).collect();
+          
+          CallingConvention {
+            name, 
+            stack_align, 
+            parameter_registers,
+            shadow_space,
+            parameter_simds
+          }
+        }).collect();
+        conventions
+      },
+      default_abi: {
+        doc.get("DEFAULT_ABI").and_then(|s| s.as_str()).expect("Default ABI must be a string").to_string()
       }
     };
   }
@@ -152,7 +197,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("{}", n);
   });
 
-  let mut generator: Generator = Generator::new(nodes, parser.globals); 
+  let mut scanner: Scanner = Scanner::new(nodes.clone());
+  println!("\nSCANNING");
+  let (max_func_param_size, stackframes) = scanner.calc_all();
+  println!("MFPS: {}, Frames: {:?}", max_func_param_size, stackframes);
+
+  let mut generator: Generator = Generator::new(nodes, parser.globals, stackframes,max_func_param_size); 
   println!("\nCOMPILED");
 
   let ret = generator.compile();

@@ -33,6 +33,15 @@ pub struct Registers {
 }
 
 #[derive(Debug, Clone, Default)]
+pub struct CallingConvention {
+  pub name: String,
+  pub stack_align: usize,
+  pub parameter_registers: Vec<(usize, usize)>,
+  pub parameter_simds: Vec<(usize, usize)>,
+  pub shadow_space: usize,
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct Configs {
   pub sizes: Sizes,
   pub sections: SectionNames,
@@ -40,7 +49,9 @@ pub struct Configs {
   pub registers: Registers,
   pub biggest_size: usize,
   pub biggest_simd: usize,
-  pub instruction_suffix: String,
+  pub floating_instructions_suffixes: Vec<(usize, String)>,
+  pub abis: Vec<CallingConvention>,
+  pub default_abi: String
 }
 
 lazy_static! {

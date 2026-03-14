@@ -542,7 +542,11 @@ impl Parser {
             if base.tryconsume(Token { kind: TokenKind::Ellipsis, ..Default::default() }) {
               variadic = true;
             } else {
-              temp.push( unsafe { (*this).parse_var(false) } );
+              let var = unsafe { (*this).parse_var(false) };
+              if temp.iter().find(|t| t.name == var.name).is_some() {
+                base.error(&format!("Parameter {} already exists", var.name));
+              }
+              temp.push(var);
             }
             count += 1;
           }
@@ -781,17 +785,10 @@ impl Parser {
       self.base.error("Cannot continue outside of a loop");
     } else if self.base.tryconsume(Token { kind: TokenKind::Extern, ..Default::default() }) {
       let abi = if matches!(self.base.peek().kind, TokenKind::Literal(_)) {
-        let name = self.base.consume().as_literal().and_then(|l| l.as_string())
-          .unwrap_or_else(|| self.base.error("Expected String Literal"));
-        match name.to_lowercase().as_str() {
-          "winc" => ABI::WINC,
-          "unixc" => ABI::UNIXC,
-          _ => {
-            self.base.error(&format!("Expected actual ABI instead of {}", name));
-          }
-        }
+        self.base.consume().as_literal().and_then(|l| l.as_string())
+          .unwrap_or_else(|| self.base.error("Expected String Literal"))
       } else {
-        ABI::LT
+        String::from("DEFAULT")
       };
 
       let name = self.base.consume().as_identifier()
@@ -813,7 +810,11 @@ impl Parser {
             if base.tryconsume(Token { kind: TokenKind::Ellipsis, ..Default::default() }) {
               variadic = true;
             } else {
-              temp.push( unsafe { (*this).parse_var(false) } );
+              let var = unsafe { (*this).parse_var(false) };
+              if temp.iter().find(|t| t.name == var.name).is_some() {
+                base.error(&format!("Parameter {} already exists", var.name));
+              }
+              temp.push(var);
             }
             count += 1;
           }

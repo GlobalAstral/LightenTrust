@@ -1,4 +1,4 @@
-use crate::{constants::get_configs, generator::generator::{Generator, MemoryLocation, StackFrame}};
+use crate::{constants::get_configs, generator::generator::{Generator, MemoryLocation}, parser::{nodes::Fnc, types::Type}, scanner::scanner::StackFrame};
 
 
 impl Generator {
@@ -6,8 +6,20 @@ impl Generator {
     self.sections.text.push_str(&format!("{}mov {}, {}\n", "\t".repeat(self.indent_depth), dst, src));
   }
 
-  pub fn movss(&mut self, dst: &str, src: &str) {
-    self.sections.text.push_str(&format!("{}mov{} {}, {}\n", "\t".repeat(self.indent_depth), get_configs().instruction_suffix, dst, src));
+  pub fn movs(&mut self, dst: &str, src: &str, suffix: &str) {
+    self.sections.text.push_str(&format!("{}mov{} {}, {}\n", "\t".repeat(self.indent_depth), suffix, dst, src));
+  }
+
+  pub fn r#move(&mut self, dst: &str, src: &str, r#type: &Type) {
+    let configs = get_configs();
+    if r#type.is_float() {
+      let suffix = configs.floating_instructions_suffixes.iter().find(|(size, _)| {
+        r#type.get_size() == *size
+      }).unwrap_or_else(|| self.base.error(&format!("No float suffix exists for size {}", r#type.get_size())));
+      self.movs(dst, src, &suffix.1);
+    } else {
+      self.mov(dst, src);
+    }
   }
 
   pub fn lea(&mut self, dst: &str, src: &str) {
@@ -70,29 +82,34 @@ impl Generator {
     self.sections.text.push_str(&format!("{}pop {}\n", "\t".repeat(self.indent_depth), loc));
   }
 
-  pub fn create_function(&mut self, name: &str, f: impl Fn(&mut Generator, isize)) {
+  pub fn create_function(&mut self, name: &str, f: impl Fn(&mut Generator, isize), abi: &str, fnc: &Fnc) {
     let configs = get_configs();
-    self.stack_frames.push(StackFrame::new());
     self.selected_stack_frame += 1;
-    
-    let old_sections = self.sections.clone();
-    f(self, 0);
-    let total_alloc = self.get_stackframe().next_ofs;
-    self.sections = old_sections;
-    self.stack_frames.pop();
-    self.stack_frames.push(StackFrame::new());
 
+    let abi = configs.abis.iter().find(|cc| cc.name == abi)
+    .unwrap_or_else(|| self.base.error(&format!("ABI {} does not exist", abi)));
+
+    let next_ofs = self.get_stackframe().next_ofs;
+
+    let total_alloc = if next_ofs % abi.stack_align as isize == 0 { next_ofs } else { 
+      next_ofs + (abi.stack_align as isize - next_ofs % abi.stack_align as isize) 
+    };
+    
     self.sections.text.push_str(&format!("{}:\n", name));
     self.indent_depth += 1;
+    
     self.push(&configs.registers.base_pointer[0]);
     self.mov(&configs.registers.base_pointer[0], &configs.registers.stack_pointer[0]);
     self.sub(&configs.registers.stack_pointer[0], &format!("{}", total_alloc.abs()));
+    
     f(self, total_alloc);
+
     self.add(&configs.registers.stack_pointer[0], &format!("{}", total_alloc.abs()));
     self.mov(&configs.registers.stack_pointer[0], &configs.registers.base_pointer[0]);
     self.pop(&configs.registers.base_pointer[0]);
     self.ret();
-    self.stack_frames.pop();
+    
+    self.stack_frames.remove(self.selected_stack_frame as usize);
     self.selected_stack_frame -= 1;
     self.indent_depth -= 1;
   }
@@ -186,8 +203,12 @@ impl Generator {
       .unwrap_or_else(|| self.base.error("Cannot get return simd")).clone()
   }
 
-  fn align_up(offset: isize, align: isize) -> isize {
-    (offset + align - 1) & !(align - 1)
+  pub fn get_return(&self, size: usize, simd: bool) -> String {
+    if simd {
+      self.get_ret_simd(size)
+    } else {
+      self.get_ret_reg(size)
+    }
   }
 
   fn get_stackframe(&mut self) -> &mut StackFrame {
@@ -197,16 +218,12 @@ impl Generator {
     self.stack_frames.get_mut(self.selected_stack_frame as usize).unwrap()
   }
 
-  pub fn alloc_var(&mut self, id: u64, size: isize, align: isize, value: &str) -> MemoryLocation {
+  pub fn alloc_var(&mut self, id: u64, value: &str) -> MemoryLocation {
     let frame = self.get_stackframe();
     
-    frame.next_ofs = Generator::align_up(frame.next_ofs, align);
-
-    frame.next_ofs += size;
+    let (_, offset) = frame.locals.iter().find(|(i, _)| id == **i).unwrap();
     
-    frame.locals.insert(id, frame.next_ofs);
-    
-    let location = MemoryLocation::Stack(-frame.next_ofs as isize);
+    let location = MemoryLocation::Stack(-*offset as isize);
     
     self.mov(&location.get(), value);
     return location;
