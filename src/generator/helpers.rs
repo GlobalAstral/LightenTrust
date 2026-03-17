@@ -1,4 +1,6 @@
-use crate::{constants::get_configs, generator::generator::{Generator, MemoryLocation}, parser::{nodes::Fnc, types::Type}, scanner::scanner::StackFrame};
+use std::fs::TryLockError;
+
+use crate::{constants::{CallingConvention, Configs, get_configs}, generator::generator::{Generator, MemoryLocation}, parser::{expressions::Expression, nodes::Fnc, types::Type}, scanner::scanner::StackFrame};
 
 
 impl Generator {
@@ -82,6 +84,14 @@ impl Generator {
     self.sections.text.push_str(&format!("{}pop {}\n", "\t".repeat(self.indent_depth), loc));
   }
 
+  fn align_to(base: isize, align: usize) -> isize {
+    if base % align as isize == 0 {
+      base 
+    } else {
+      base + (align as isize - base % align as isize) 
+    }
+  }
+
   pub fn create_function(&mut self, name: &str, f: impl Fn(&mut Generator, isize), abi: &str, fnc: &Fnc) {
     let configs = get_configs();
     self.selected_stack_frame += 1;
@@ -91,9 +101,7 @@ impl Generator {
 
     let next_ofs = self.get_stackframe().next_ofs;
 
-    let total_alloc = if next_ofs % abi.stack_align as isize == 0 { next_ofs } else { 
-      next_ofs + (abi.stack_align as isize - next_ofs % abi.stack_align as isize) 
-    };
+    let total_alloc = Generator::align_to(next_ofs, abi.stack_align);
     
     self.sections.text.push_str(&format!("{}:\n", name));
     self.indent_depth += 1;
@@ -236,5 +244,23 @@ impl Generator {
     }
     self.free_cache = temp;
     self.free_cache.clear();
+  }
+
+  pub fn expr_conv_arg(iarg: usize, conv: &CallingConvention, r#type: &Type) -> Option<(usize, usize)> {
+    if r#type.is_float() {
+      conv.parameter_simds.iter().find(|(arg_i, _)| *arg_i == iarg)
+    } else {
+      conv.parameter_registers.iter().find(|(arg_i, _)| *arg_i == iarg)
+    }.cloned()
+  }
+
+  pub fn get_register(id: usize, r#type: &Type) -> String {
+    let configs = get_configs();
+    let index: usize = (configs.biggest_simd / r#type.get_size()).ilog2() as usize;
+    if r#type.is_float() {
+      configs.registers.simds.get(id).expect("Cannot get register")[index].clone()
+    } else {
+      configs.registers.basic.get(id).expect("Cannot get register")[index].clone()
+    }
   }
 }
