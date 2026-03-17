@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::{constants::get_configs, parser::{assembly::AssemblyChunk, expressions::{ExprKind, Expression}, literals::Literal, nodes::{Fnc, Node}, types::{Type, Variable}, utils::Processor}, scanner::scanner::StackFrame};
+use crate::{constants::{CallingConvention, Configs, get_configs}, parser::{assembly::AssemblyChunk, expressions::{ExprKind, Expression}, literals::Literal, nodes::{Fnc, Node}, types::{Type, Variable}, utils::Processor}, scanner::scanner::StackFrame};
 
 static mut LABEL_ID: u64 = 0;
 
@@ -135,6 +135,18 @@ impl Generator {
     }
   }
 
+  pub fn compile_args_wconv(&mut self, conv: &CallingConvention, args: &Vec<Expression>) {
+    for (iarg, arg) in args.iter().enumerate().rev() {
+      if let Some((_, reg_id)) = Generator::expr_conv_arg(iarg, conv, &arg.return_type) {
+        let reg = Generator::get_register(reg_id, &arg.return_type);
+        let loc = self.compile_expr(arg);
+        self.r#move(&reg, &loc.get(), &arg.return_type);
+      } else {
+        
+      }
+    }
+  }
+
   fn compile_expr(&mut self, expr: &Expression) -> MemoryLocation {
     match &expr.kind {
       ExprKind::Literal(lit) => self.compile_literal(lit),
@@ -177,7 +189,17 @@ impl Generator {
       ExprKind::FncCall { id, args } => {
         let configs = get_configs();
 
-        
+        let fnc = self.functions.iter().find(|f| f.id == *id).unwrap().clone();
+
+        if let Some(linkeage) = fnc.linkage {
+          let abi = configs.abis.iter().find(|abi| abi.name == linkeage.abi)
+            .unwrap_or_else(|| self.base.error(&format!("ABI {} does not exist", linkeage.abi)));
+          self.compile_args_wconv(abi, args);
+        } else {
+          let abi = configs.abis.iter().find(|abi| abi.name == configs.default_abi)
+            .unwrap_or_else(|| self.base.error(&format!("ABI {} does not exist", configs.default_abi)));
+          self.compile_args_wconv(abi, args);
+        }
 
         unreachable!()
       }
