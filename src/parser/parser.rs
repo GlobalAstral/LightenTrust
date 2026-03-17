@@ -566,6 +566,18 @@ impl Parser {
         self.locals.push(arg.clone());
       });
 
+      let fnc = Fnc {name: name.clone(), return_type: Box::new(return_type.clone()), arguments: arguments.clone(), body: Some(Box::new(Node::Ignored)), id: generate_id(), variadic, linkage: None};
+      if self.functions.iter().find(|a| {
+        a.name == name && 
+        a.arguments.len() == arguments.len() && 
+        a.arguments.iter().zip(&arguments).all(|(x, y)| x.r#type.compatible_with(&y.r#type)) &&
+        a.return_type.compatible_with(&return_type) 
+      }).is_some() {
+        self.base.error(&format!("Function {} already exists", fnc))
+      };
+      
+      self.functions.push(fnc);
+
       let body = if self.base.tryconsume(Token { kind: TokenKind::Semicolon, ..Default::default() }) {
         None
       } else {
@@ -579,21 +591,14 @@ impl Parser {
         self.return_type = None;
         Some(Box::new(body))
       };
+
+      let f = self.functions.last_mut().unwrap();
+      
+      f.body = body;
       
       self.locals.drain(before..);
       
-      let fnc = Fnc {name: name.clone(), return_type: Box::new(return_type.clone()), arguments: arguments.clone(), body: body, id: generate_id(), variadic, linkage: None};
-      if self.functions.iter().find(|a| {
-        a.name == name && 
-        a.arguments.len() == arguments.len() && 
-        a.arguments.iter().zip(&arguments).all(|(x, y)| x.r#type.compatible_with(&y.r#type)) &&
-        a.return_type.compatible_with(&return_type) 
-      }).is_some() {
-        self.base.error(&format!("Function {} already exists", fnc))
-      };
-      
-      self.functions.push(fnc.clone());
-      Node::FncDecl(fnc)
+      Node::FncDecl(f.clone())
     
     } else if self.base.tryconsume(Token { kind: TokenKind::Operator, ..Default::default() }) {
       let symbols = self.base.consume().as_symbols()
