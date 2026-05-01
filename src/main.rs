@@ -1,33 +1,14 @@
 use std::{env, error::Error, fs::{self, OpenOptions}, io::Write, path::PathBuf};
 
-use toml_edit::{Array, Document, Item, Value};
+use toml_edit::Document;
 
-use crate::{constants::{CONFIGS, CallingConvention, Configs, DEFAULT_CONFIG, EXTENSION, RegisterVariants, Registers, SectionNames, Sizes}, generator::generator::Generator, parser::parser::Parser, scanner::scanner::Scanner, tokens::{preprocessor::Preprocessor, tokenizer::Tokenizer}};
+use crate::{constants::{CONFIGS, CallingConvention, Configs, DEFAULT_CONFIG, EXTENSION, RegisterVariants, Registers, SectionNames, Sizes}, parser::{nodes::Node, parser::Parser}, tokens::{preprocessor::Preprocessor, tokenizer::Tokenizer}};
 
 mod constants;
 mod tokens;
 mod parser;
-mod scanner;
-mod generator;
 
-fn main() -> Result<(), Box<dyn Error>> {
-  let args: Vec<String> = env::args().collect();
-
-  let input_file: Result<&String, Box<dyn Error>> = args.get(1).ok_or_else(|| "Invalid CLI arguments".into());
-  let mut input_file = PathBuf::from(input_file?);
-  input_file.set_extension(EXTENSION);
-  let args: Vec<&str> = args.iter().skip(2).map(|s| s.as_str()).collect();
-
-  #[allow(unused_variables)]
-  let output_file = if let Some((index, _)) = args.iter().enumerate().find(|(_, arg)| **arg == "-o") {
-    let temp: Result<&&str, Box<dyn Error>> = args.get(index + 1).ok_or_else(|| "Invalid CLI arguments".into());
-    let mut temp = PathBuf::from(temp?);
-    temp.set_extension("exe");
-    temp
-  } else {
-    input_file.with_extension("exe")
-  };
-
+fn main_compile(args: Vec<&str>, nodes: Vec<Node>, output_file: PathBuf) -> Result<(), Box<dyn Error>> {
   let config_file: PathBuf = 
     if let Some((index, _)) = args.iter().enumerate().find(|(_, arg)| **arg == "-cfg") {
       let temp: Result<&&str, Box<dyn Error>> = args.get(index + 1).ok_or_else(|| "Invalid CLI arguments".into());
@@ -173,6 +154,26 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
   }
 
+  //TODO COMPILER
+
+  Ok(())
+}
+
+fn main_interpret(nodes: Vec<Node>) -> Result<(), Box<dyn Error>> {
+
+  
+
+  Ok(())
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+  let args: Vec<String> = env::args().collect();
+
+  let input_file: Result<&String, Box<dyn Error>> = args.get(1).ok_or_else(|| "Invalid CLI arguments".into());
+  let mut input_file = PathBuf::from(input_file?);
+  input_file.set_extension(EXTENSION);
+  let args: Vec<&str> = args.iter().skip(2).map(|s| s.as_str()).collect();
+
   let content = fs::read_to_string(&input_file)?;
   let mut tokenizer: Tokenizer = Tokenizer::new(&content, input_file.clone());
   let tokens = tokenizer.tokenize();
@@ -197,24 +198,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("{}", n);
   });
 
-  let mut scanner: Scanner = Scanner::new(nodes.clone());
-  println!("\nSCANNING");
-  let (max_func_param_size, stackframes) = scanner.calc_all();
-  println!("MFPS: {}, Frames: {:?}", max_func_param_size, stackframes);
-
-  let mut generator: Generator = Generator::new(nodes, parser.globals, stackframes,max_func_param_size); 
-  println!("\nCOMPILED");
-
-  let ret = generator.compile();
-  println!("{}", ret);
-
-  {
-    let mut asm_file = OpenOptions::new()
-      .create(true)
-      .truncate(true)
-      .write(true)
-      .open(input_file.with_extension("asm"))?;
-    write!(asm_file, "{}", ret)?;
+  if args.contains(&"-interpret") {
+    main_interpret(nodes)?;
+    return Ok(())
   }
+
+  #[allow(unused_variables)]
+  let output_file = if let Some((index, _)) = args.iter().enumerate().find(|(_, arg)| **arg == "-o") {
+    let temp: Result<&&str, Box<dyn Error>> = args.get(index + 1).ok_or_else(|| "Invalid CLI arguments".into());
+    let mut temp = PathBuf::from(temp?);
+    temp.set_extension("exe");
+    temp
+  } else {
+    input_file.with_extension("exe")
+  };
+
+  main_compile(args, nodes, output_file)?;
+
   Ok(())
 }
